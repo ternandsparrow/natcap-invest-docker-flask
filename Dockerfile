@@ -1,7 +1,7 @@
 FROM tomsaleeba/natcap-invest-docker:3.4.2-pollination
 
-RUN mkdir /invest_http
-ADD files/ /invest_http
-WORKDIR /invest_http
+ADD docker/ requirements.txt /app/
+ADD natcap_invest_docker_flask/ /app/natcap_invest_docker_flask/
+WORKDIR /app/
 RUN /bin/bash setup.sh
 ENTRYPOINT [ "/bin/bash", "run.sh" ]
