@@ -3,6 +3,7 @@ import os
 import shutil
 
 from flask import Flask, jsonify, abort, send_file
+from flask_cors import CORS
 import natcap.invest.pollination
 import shapefile
 import subprocess32 as subprocess
@@ -10,6 +11,7 @@ import subprocess32 as subprocess
 from helpers import get_records
 
 app = Flask(__name__)
+CORS(app)
 
 def workspace_path(suffix):
     return u'/workspace/' + str(suffix)
@@ -54,6 +56,7 @@ def pollination():
         'records': records
     })
 
+# FIXME handle double slashes
 @app.route("/image/<uniqueworkspace>/<imagename>")
 def get_png(uniqueworkspace, imagename):
     """ fetches the PNG version of a GeoTIFF in a lazy-init way """

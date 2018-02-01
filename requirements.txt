@@ -1,3 +1,4 @@
 flask
+flask-cors
 pyshp
 subprocess32>=3.5.0rc1
