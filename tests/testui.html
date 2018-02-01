@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>natcap-invest-docker-flask tester</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.css" />
+  <style>
+    div.row {
+      margin-bottom: 1em;
+    }
+  </style>
+</head>
+
+<body ng-app="nidf">
+  <div ng-controller="MainController" class="container">
+    <div class="row">
+      <div class="col-sm">
+        <h1 class="text-center">The Tester</h1>
+      </div>
+    </div>
+    <div class="row justify-content-center">
+      <div class="card">
+        <div class="card-header">Start here</div>
+        <div class="card-body">
+          <h5 class="card-title">Where does the server live?</h5>
+          <p class="card-text">We need to know the URL that we can reach the server at.</p>
+          <form class="form-inline">
+            <div class="form-group mx-sm-3 mb-2">
+              <label for="inputBaseUrl" style="margin-right: 2em;">Base URL:</label>
+              <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" style="width: 26em;" class="form-control" id="inputBaseUrl">
+            </div>
+          </form>
+          <p class="text-center">
+            <a href="#" class="btn btn-primary btn-lg" ng-click="executePollinationModel()">Execute pollination model</a>
+          </p>
+          <div class="text-center">
+            <small class="text-muted">It usually takes ~25 seconds to run the model</small>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row justify-content-center" ng-show="isExecuteFailed">
+      <div class="alert alert-danger" role="alert">
+        Oh no! Something failed. If you're a developer, check the console for log messages.
+      </div>
+    </div>
+    <div class="row" ng-show="resultTable">
+      <div class="col-sm">
+        <div class="card">
+          <div class="card-header">Results: Records</div>
+          <div class="card-body">
+            <table class="table table-responsive">
+              <thead>
+                <tr>
+                  <th ng-repeat="curr in tableHeaders">{{curr}}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr ng-repeat="curr in resultTable">
+                  <td ng-repeat="f in tableHeaders">{{curr[f]}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row" ng-show="resultImages">
+      <div class="col-sm">
+        <div class="card">
+          <div class="card-header">Results: Images</div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li ng-repeat="curr in resultImages | orderBy" class="list-group-item">
+                <a ng-href="{{url(curr)}}" target="_blank">{{curr}}</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.7.1/angular-local-storage.min.js"></script>
+  <script type="text/javascript">
+    var app = angular.module('nidf', ['angular-loading-bar', 'LocalStorageModule'])
+    app.config(function (localStorageServiceProvider) {
+      localStorageServiceProvider.setPrefix('nidf')
+    })
+    app.controller('MainController', function ($scope, $http, localStorageService) {
+      var BASE_URL_KEY = 'base_url'
+      $scope.baseUrl = getBaseUrlFromStorage()
+      $scope.isExecutingModel = false
+      $scope.isExecuteFailed = false
+      $scope.tableHeaders = []
+      $scope.executePollinationModel = function () {
+        $scope.isExecutingModel = true
+        $scope.isExecuteFailed = false
+        return $http.get(url('/pollination')).then(function(resp) {
+          $scope.isExecutingModel = false
+          $scope.resultTable = resp.data.records
+          $scope.resultImages = resp.data.images
+          $scope.tableHeaders = updateTableHeaders()
+        }, function(resp) {
+          $scope.isExecutingModel = false
+          console.error('Failed to make HTTP call')
+          $scope.isExecuteFailed = true
+        })
+      }
+
+      $scope.updateBaseUrl = function () {
+        if (!localStorageService.isSupported) {
+          return
+        }
+        localStorageService.set(BASE_URL_KEY, $scope.baseUrl)
+      }
+
+      function getBaseUrlFromStorage () {
+        var defaultBaseUrl = 'http://localhost:5000'
+        if (!localStorageService.isSupported) {
+          return defaultBaseUrl
+        }
+        var result = localStorageService.get(BASE_URL_KEY)
+        if (result) {
+          return result
+        }
+        return defaultBaseUrl
+      }
+
+      function updateTableHeaders () {
+        if (! $scope.resultTable) {
+          return []
+        }
+        var first = $scope.resultTable[0]
+        return Object.keys(first).reduce(function (accum, curr) {
+          if (curr.startsWith('$')) {
+            return accum
+          }
+          accum.push(curr)
+          return accum
+        }, [])
+      }
+
+      $scope.url = url
+      function url(suffix) {
+        var result = $scope.baseUrl + suffix
+        return result.replace(/\/\//g, '/')
+      }
+    })
+  </script>
+</body>
+</html>
