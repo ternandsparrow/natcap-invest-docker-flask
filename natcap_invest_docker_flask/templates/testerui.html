@@ -19,7 +19,7 @@
   <div ng-controller="MainController" class="container">
     <div class="row">
       <div class="col-sm">
-        <h1 class="text-center">The Tester</h1>
+        <h1 class="text-center">The natcap-invest-docker-flask Tester</h1>
       </div>
     </div>
     <div class="row justify-content-center">
@@ -101,6 +101,8 @@
       $scope.executePollinationModel = function () {
         $scope.isExecutingModel = true
         $scope.isExecuteFailed = false
+        $scope.resultTable = null
+        $scope.resultImages = null
         return $http.get(url('/pollination')).then(function(resp) {
           $scope.isExecutingModel = false
           $scope.resultTable = resp.data.records
@@ -121,7 +123,7 @@
       }
 
       function getBaseUrlFromStorage () {
-        var defaultBaseUrl = 'http://localhost:5000'
+        var defaultBaseUrl = '{j{ url_root }j}' // this param comes from Flask+Jinja2
         if (!localStorageService.isSupported) {
           return defaultBaseUrl
         }
@@ -148,8 +150,7 @@
 
       $scope.url = url
       function url(suffix) {
-        var result = $scope.baseUrl + suffix
-        return result.replace(/\/\//g, '/')
+        return $scope.baseUrl.replace(/\/$/, '') + suffix
       }
     })
   </script>

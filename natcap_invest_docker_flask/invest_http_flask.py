@@ -2,16 +2,24 @@ import time
 import os
 import shutil
 
-from flask import Flask, jsonify, abort, send_file
+from flask import Flask, jsonify, abort, send_file, render_template, request
 from flask_cors import CORS
 import natcap.invest.pollination
 import shapefile
 import subprocess32 as subprocess
 
-from helpers import get_records
+from helpers import get_records, extract_min_max
 
 app = Flask(__name__)
 CORS(app)
+# stop Jinja2/angularjs conflict, thanks https://stackoverflow.com/a/30362956/1410035
+jinja_options = app.jinja_options.copy()
+
+jinja_options.update(dict(
+    variable_start_string='{j{',
+    variable_end_string='}j}',
+))
+app.jinja_options = jinja_options
 
 def workspace_path(suffix):
     return u'/workspace/' + str(suffix)
@@ -66,21 +74,30 @@ def get_png(uniqueworkspace, imagename):
     tiff_file = png_file.replace('.png', '.tif')
     if not os.path.isfile(tiff_file):
         return abort(404) # guard for requesting non-existing files
-    if not (imagename.endswith('.png')):
+    if not imagename.endswith('.png'):
         return abort(400) # TODO add message that only PNG is supported
     if os.path.isfile(png_file):
         return send_file(png_file, mimetype='image/png')
     debug('generating PNG from "%s"' % tiff_file)
-    min = '0'
-    max = '0.092' # FIXME dynamically read this
+    shelloutput = subprocess.check_output('gdalinfo %s | grep "Min="' % tiff_file, shell=True)
+    minmax = extract_min_max(shelloutput)
+    min_scale = minmax['min']
+    max_scale = minmax['max']
+    # Our version of gdal (1.11.x) is too old to have translate() and info(), only >2 seems to have that.
+    # So we resort to using the shell commands that give us the functionality.
     subprocess.check_call([
         '/usr/bin/gdal_translate',
         '-of', 'PNG',
         '-ot', 'Byte',
-        '-scale', min, max,
+        '-scale', min_scale, max_scale,
         '-outsize', resize_percentage, resize_percentage,
         tiff_file,
         png_file], stdout=subprocess.DEVNULL)
     return send_file(png_file, mimetype='image/png')
 
 # TODO add endpoint to retrieve GeoTIFF images
+
+@app.route('/tester')
+def tester():
+    """ returns a UI for interacting with this service """
+    return render_template('testerui.html', url_root=request.url_root)

@@ -21,6 +21,8 @@ curl localhost:5000/ # this will get the available links, just a healthcheck rea
 curl localhost:5000/pollination # this will execute the pollination model
 ```
 
+Alternatively, you can go to http://localhost:5000/tester to use a web UI to interact with the service.
+
 ## Building it
 
 You can build this project with the following command:
