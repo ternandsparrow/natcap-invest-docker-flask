@@ -35,3 +35,18 @@ Then you can push to DockerHub with:
 ```bash
 docker push tomsaleeba/natcap-invest-docker-flask
 ```
+
+## Faster development iterations
+
+There are 3 ways to run this project:
+ 1. build the docker image and run it
+ 1. have a virtualenv (or not, if you're crazy) with all the dependencies installed
+ 1. use `tests/stub_runner.py`
+
+The first two methods run a "real" system that will actually call natcap's code. The third method runs flask with a stub natcap implementation behind it so you can quickly iterate on changes to the HTTP related code without running the slow backend code or building a docker image (also slow).
+
+## TODO
+
+ 1. add something to clean up old workspace files
+ 1. make farm vector file a param to /pollination
+ 1. make landcover raster file a param to /pollination

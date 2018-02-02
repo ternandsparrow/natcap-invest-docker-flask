@@ -1,7 +1,7 @@
 import unittest
 from .context import natcap_invest_docker_flask
 
-objectundertest = natcap_invest_docker_flask.helpers
+objectundertest = natcap_invest_docker_flask
 
 class Test(unittest.TestCase):
     def test_map_fields01(self):
@@ -49,9 +49,8 @@ class Test(unittest.TestCase):
         """ is the expected error raised when a value can't be found """
         src = '  Min=0.073 \n'
         try:
-            result = objectundertest.extract_min_max(src)
+            objectundertest.extract_min_max(src)
             self.fail()
         except AttributeError:
             # success!
             pass
-        
