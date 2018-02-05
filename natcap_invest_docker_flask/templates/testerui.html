@@ -12,6 +12,13 @@
     div.row {
       margin-bottom: 1em;
     }
+
+    #inputFarmVector {
+      width: 100%;
+      height: 25em;
+      border-radius: .25rem;
+      border: 1px solid #ced4da;
+    }
   </style>
 </head>
 
@@ -28,10 +35,13 @@
         <div class="card-body">
           <h5 class="card-title">Where does the server live?</h5>
           <p class="card-text">We need to know the URL that we can reach the server at.</p>
-          <form class="form-inline">
-            <div class="form-group mx-sm-3 mb-2">
+          <form>
+            <div class="form-group">
               <label for="inputBaseUrl" style="margin-right: 2em;">Base URL:</label>
               <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" style="width: 26em;" class="form-control" id="inputBaseUrl">
+            <div class="form-group">
+              <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
+              <textarea ng-model="farmVector" id="inputFarmVector"></textarea>
             </div>
           </form>
           <p class="text-center">
@@ -102,12 +112,13 @@
       $scope.isExecutingModel = false
       $scope.isExecuteFailed = false
       $scope.tableHeaders = []
+      $scope.farmVector = '{j{example_farm_vector|safe}j}'
       $scope.executePollinationModel = function () {
         $scope.isExecutingModel = true
         $scope.isExecuteFailed = false
         $scope.resultTable = null
         $scope.resultImages = null
-        return $http.get(url('/pollination')).then(function(resp) {
+        return $http.post(url('/pollination'), $scope.farmVector).then(function(resp) {
           $scope.isExecutingModel = false
           $scope.resultTable = resp.data.records
           $scope.resultImages = resp.data.images

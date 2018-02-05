@@ -27,7 +27,7 @@ class Test(unittest.TestCase):
     def test_pollination01(self):
         """ can we execute the pollination model? """
         class StubModelRunner(object):
-            def execute_model(self):
+            def execute_model(self, geojson_farm_vector):
                 return {
                     'images': [
                         '/images/123/image1.png',
@@ -41,7 +41,9 @@ class Test(unittest.TestCase):
                         'season': 'summer'
                     }]
                 }
-        result = self.app(StubModelRunner()).get('/pollination')
+        data = u'{"foo":"bar"}'
+        result = self.app(StubModelRunner()).post('/pollination', data=data,
+                content_type='application/json')
         self.assertEqual(loads(result.data), {
             'images': [
                 '/images/123/image1.png',

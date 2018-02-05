@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import natcap_invest_docker_flask
 
 class StubModelRunner(object):
-    def execute_model(self):
+    def execute_model(self, geojson_farm_vector):
+        print('received farm vector=%s...' % str(geojson_farm_vector)[:30])
         return {
             'images': ['image1'],
             'records': [{'crop_type': 'stub1'}, {'crop_type': 'stub2'}]
@@ -22,5 +23,13 @@ class StubModelRunner(object):
     def get_png(self, _, _2):
         return os.path.join(thisdir, 'onewhitepixel.png')
 
+
 app = natcap_invest_docker_flask.make_app(StubModelRunner())
-app.run(debug=True)
+port = 5000
+if len(sys.argv) > 1:
+    val = sys.argv[1]
+    try:
+        port = int(val)
+    except ValueError:
+        print('Supplied port param "%s" is not a number, ignoring.' % val)
+app.run(debug=True, port=port)

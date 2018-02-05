@@ -31,6 +31,7 @@ class Test(unittest.TestCase):
             }
         ])
 
+
     def test_extract_min_max01(self):
         """ can we extract the values when min==0 """
         src = '  Min=0 Max=0.37 \n'
@@ -38,12 +39,14 @@ class Test(unittest.TestCase):
         self.assertEqual(result['min'], '0')
         self.assertEqual(result['max'], '0.37')
 
+
     def test_extract_min_max02(self):
         """ can we extract the values when min>0 """
         src = '  Min=0.073 Max=0.158 \n'
         result = objectundertest.extract_min_max(src)
         self.assertEqual(result['min'], '0.073')
         self.assertEqual(result['max'], '0.158')
+
 
     def test_extract_min_max03(self):
         """ is the expected error raised when a value can't be found """

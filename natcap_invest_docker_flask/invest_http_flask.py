@@ -1,8 +1,18 @@
+import os
+
 from flask import Flask, jsonify, send_file, render_template, request
+from flask.json import dumps
 from flask_cors import CORS
 
-# Inject this dependency. FIXME can we create a class and pass this to the constructor?
-# model_runner = None
+def log_geojson(data):
+    data_str = dumps(data)
+    if len(data_str) > 30:
+        msg = data_str[:30] + '...' 
+    else:
+        msg = data_str
+    print('[DEBUG] supplied GeoJSON=%s' % msg)
+
+# FIXME can we create a class and pass this to the constructor?
 def make_app(model_runner):
     app = Flask(__name__)
     CORS(app)
@@ -14,6 +24,9 @@ def make_app(model_runner):
         variable_end_string='}j}',
     ))
     app.jinja_options = jinja_options
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    app_static = os.path.join(app_root, 'static')
+
 
     @app.route('/')
     def root():
@@ -24,11 +37,17 @@ def make_app(model_runner):
             ]
         })
 
-    @app.route('/pollination')
+
+    @app.route('/pollination', methods=['POST'])
     def pollination():
         """ executes the InVEST pollination model and returns the results """
-        result = model_runner.execute_model()
+        # TODO enforce only accepting JSON
+        geojson_farm_vector = request.get_json()
+        log_geojson(geojson_farm_vector)
+        # TODO validate schema of data
+        result = model_runner.execute_model(geojson_farm_vector)
         return jsonify(result)
+
 
     # FIXME handle double slashes
     @app.route('/image/<uniqueworkspace>/<imagename>')
@@ -40,12 +59,21 @@ def make_app(model_runner):
         except SomethingFailedException as e:
             return e.http_resp
 
+
     # TODO add endpoint to retrieve GeoTIFF images
+
 
     @app.route('/tester')
     def tester():
         """ returns a UI for interacting with this service """
-        return render_template('testerui.html', url_root=request.url_root)
+        example_farm_vector_path = os.path.join(app_static, 'example-farm-vector.json')
+        with open(example_farm_vector_path) as f:
+            with_newlines = f.read()
+            example_farm_vector = with_newlines.replace('\n', '\\n')
+        return render_template('testerui.html',
+                example_farm_vector=example_farm_vector,
+                url_root=request.url_root)
+
 
     return app
 

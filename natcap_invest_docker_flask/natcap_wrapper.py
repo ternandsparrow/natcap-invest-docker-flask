@@ -6,6 +6,7 @@ import natcap.invest.pollination
 import shapefile
 import subprocess32 as subprocess
 from flask import abort
+from flask.json import dumps
 
 from .invest_http_flask import SomethingFailedException
 from .helpers import get_records, extract_min_max
@@ -24,13 +25,14 @@ def debug(msg):
 
 
 class NatcapModelRunner(object):
-    def execute_model(self):
+    def execute_model(self, geojson_farm_vector):
         unique_workspace = now_in_ms() # FIXME might not be unique with parallel requests
         workspace_dir = workspace_path(unique_workspace)
         debug('using workspace dir "%s"' % workspace_dir)
         os.mkdir(workspace_dir)
+        farm_vector_path = self.transform_geojson_to_shapefile(geojson_farm_vector, workspace_dir)
         args = {
-            u'farm_vector_path': u'/data/pollination/farms.shp',
+            u'farm_vector_path': farm_vector_path,
             u'guild_table_path': u'/data/pollination/guild_table.csv',
             u'landcover_biophysical_table_path': u'/data/pollination/landcover_biophysical_table.csv',
             u'landcover_raster_path': u'/data/pollination/landcover.tif',
@@ -47,6 +49,21 @@ class NatcapModelRunner(object):
             'images': images,
             'records': records
         }
+
+
+    def transform_geojson_to_shapefile(self, geojson_farm_vector, workspace_dir):
+        """ Writes the supplied GeoJSON to a file, then transforms it
+            to a shapefile and returns the path to that shapefile """
+        farm_vector_path = os.path.join(workspace_dir, u'farms.shp')
+        geojson_path = os.path.join(workspace_dir, u'farms.json')
+        with open(geojson_path, 'w') as f:
+            f.write(dumps(geojson_farm_vector))
+        subprocess.check_call([
+            '/usr/bin/ogr2ogr',
+            '-f', 'ESRI Shapefile',
+            farm_vector_path,
+            geojson_path], stdout=subprocess.DEVNULL)
+        return farm_vector_path
     
 
     def get_png(self, uniqueworkspace, imagename):
