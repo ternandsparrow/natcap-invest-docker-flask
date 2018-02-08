@@ -1,7 +1,8 @@
 import os
 
-from flask import Flask, jsonify, send_file, render_template, request
+from flask import Flask, jsonify, send_file, render_template, request, abort
 from flask.json import dumps
+from flask_accept import accept
 from flask_cors import CORS
 
 def log_geojson(data):
@@ -39,9 +40,9 @@ def make_app(model_runner):
 
 
     @app.route('/pollination', methods=['POST'])
+    @accept('application/json')
     def pollination():
         """ executes the InVEST pollination model and returns the results """
-        # TODO enforce only accepting JSON
         geojson_farm_vector = request.get_json()
         log_geojson(geojson_farm_vector)
         # TODO validate schema of data

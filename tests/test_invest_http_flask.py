@@ -29,34 +29,44 @@ class Test(unittest.TestCase):
         class StubModelRunner(object):
             def execute_model(self, geojson_farm_vector):
                 return {
-                    'images': [
-                        '/images/123/image1.png',
-                        '/images/123/image2.png'
-                    ],
+                    'images': ['/images/123/image1.png'],
                     'records': [{
-                        'crop_type': 'apples',
-                        'season': 'spring'
-                    }, {
                         'crop_type': 'pears',
                         'season': 'summer'
                     }]
                 }
         data = u'{"foo":"bar"}'
         result = self.app(StubModelRunner()).post('/pollination', data=data,
-                content_type='application/json')
+                content_type='application/json', headers={'accept': 'application/json'})
         self.assertEqual(loads(result.data), {
-            'images': [
-                '/images/123/image1.png',
-                '/images/123/image2.png'
-            ],
+            'images': ['/images/123/image1.png'],
             'records': [{
-                'crop_type': 'apples',
-                'season': 'spring'
-            }, {
                 'crop_type': 'pears',
                 'season': 'summer'
             }]
         })
+
+    def test_pollination02(self):
+        """ Do we get a 406 when we accept something that isn't JSON """
+        class StubModelRunner(object):
+            def execute_model(self, geojson_farm_vector):
+                return {}
+        data = u'{"foo":"bar"}'
+        not_json_mimetype = 'application/xml'
+        result = self.app(StubModelRunner()).post('/pollination', data=data,
+                content_type='application/json', headers={'accept': not_json_mimetype})
+        self.assertEqual(result.status_code, 406)
+
+
+    def test_pollination03(self):
+        """ Do we get a 406 when we don't provide an accept header """
+        class StubModelRunner(object):
+            def execute_model(self, geojson_farm_vector):
+                return {}
+        data = u'{"foo":"bar"}'
+        result = self.app(StubModelRunner()).post('/pollination', data=data,
+                content_type='application/json')
+        self.assertEqual(result.status_code, 406)
 
 
     def test_get_png01(self):
