@@ -35,9 +35,12 @@ class Test(unittest.TestCase):
                         'season': 'summer'
                     }]
                 }
-        data = u'{"foo":"bar"}'
+        farm_vector_path = os.path.join(os.path.dirname(__file__), '../natcap_invest_docker_flask/static/example-farm-vector.json')
+        with open(farm_vector_path) as f:
+            data = f.read()
         result = self.app(StubModelRunner()).post('/pollination', data=data,
                 content_type='application/json', headers={'accept': 'application/json'})
+        self.assertEqual(result.status_code, 200)
         self.assertEqual(loads(result.data), {
             'images': ['/images/123/image1.png'],
             'records': [{
@@ -48,25 +51,42 @@ class Test(unittest.TestCase):
 
     def test_pollination02(self):
         """ Do we get a 406 when we accept something that isn't JSON """
-        class StubModelRunner(object):
-            def execute_model(self, geojson_farm_vector):
-                return {}
         data = u'{"foo":"bar"}'
         not_json_mimetype = 'application/xml'
-        result = self.app(StubModelRunner()).post('/pollination', data=data,
+        result = self.app().post('/pollination', data=data,
                 content_type='application/json', headers={'accept': not_json_mimetype})
         self.assertEqual(result.status_code, 406)
 
 
     def test_pollination03(self):
         """ Do we get a 406 when we don't provide an accept header """
-        class StubModelRunner(object):
-            def execute_model(self, geojson_farm_vector):
-                return {}
         data = u'{"foo":"bar"}'
-        result = self.app(StubModelRunner()).post('/pollination', data=data,
+        result = self.app().post('/pollination', data=data,
                 content_type='application/json')
         self.assertEqual(result.status_code, 406)
+
+
+    def test_pollination04 (self):
+        """ Do we get the expected 4xx response when we provide post POST body that doesn't validate """
+        data = u'{"type":100}'
+        result = self.app().post('/pollination', data=data,
+                content_type='application/json', headers={'accept': 'application/json'})
+        self.assertEqual(result.status_code, 422)
+
+
+    def test_pollination05 (self):
+        """ Do we get the expected 4xx response when we provide Content-type != application/json """
+        data = u'<blah>Not json</blah>'
+        result = self.app().post('/pollination', data=data,
+                content_type='application/xml', headers={'accept': 'application/json'})
+        self.assertEqual(result.status_code, 415)
+
+
+    def test_pollination06 (self):
+        """ Do we get the expected 4xx response when we don't provide a body """
+        result = self.app().post('/pollination',
+                content_type='application/json', headers={'accept': 'application/json'})
+        self.assertEqual(result.status_code, 400)
 
 
     def test_get_png01(self):

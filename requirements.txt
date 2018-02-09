@@ -1,5 +1,6 @@
-flask
+flask>=0.12
 flask-accept
 flask-cors
+flask-inputs
 pyshp
 subprocess32>=3.5.0rc1

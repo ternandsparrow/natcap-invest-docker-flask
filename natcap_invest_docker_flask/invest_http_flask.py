@@ -4,6 +4,10 @@ from flask import Flask, jsonify, send_file, render_template, request, abort
 from flask.json import dumps
 from flask_accept import accept
 from flask_cors import CORS
+from flask_inputs import Inputs
+from flask_inputs.validators import JsonSchema
+
+from .schema import schema as pollination_schema
 
 def log_geojson(data):
     data_str = dumps(data)
@@ -43,9 +47,16 @@ def make_app(model_runner):
     @accept('application/json')
     def pollination():
         """ executes the InVEST pollination model and returns the results """
+        if not request.is_json:
+            abort(415)
         geojson_farm_vector = request.get_json()
         log_geojson(geojson_farm_vector)
-        # TODO validate schema of data
+        class JsonInputs(Inputs):
+            json = [JsonSchema(schema=pollination_schema)]
+        inputs = JsonInputs(request)
+        if not inputs.validate():
+            print('[DEBUG] Validation errors=%s' % inputs.errors)
+            return abort(422)
         result = model_runner.execute_model(geojson_farm_vector)
         return jsonify(result)
 
