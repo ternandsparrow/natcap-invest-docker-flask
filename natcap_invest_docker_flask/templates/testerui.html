@@ -19,6 +19,10 @@
       border-radius: .25rem;
       border: 1px solid #ced4da;
     }
+
+    .mono {
+      font-family: monospace;
+    }
   </style>
 </head>
 
@@ -30,34 +34,39 @@
       </div>
     </div>
     <div class="row justify-content-center">
-      <!-- FIXME figure out what to put cards in so they don't destroy the layout with position: relative -->
-      <div class="card">
-        <div class="card-header">Start here</div>
-        <div class="card-body">
-          <h5 class="card-title">Where does the server live?</h5>
-          <p class="card-text">We need to know the URL that we can reach the server at.</p>
-          <form>
-            <div class="form-group">
-              <label for="inputBaseUrl" style="margin-right: 2em;">Base URL:</label>
-              <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" style="width: 26em;" class="form-control" id="inputBaseUrl">
-            <div class="form-group">
-              <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
-              <textarea ng-model="farmVector" id="inputFarmVector"></textarea>
-              <div>To edit the farm vector:
-                <ol>
-                  <li><a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedFarmVector()}}" target="_blank">send this GeoJSON to geojson.io</a> for editing</li>
-                  <li>copy the edited JSON from geojson.io to your clipboard</li>
-                  <li>come back to this page, replace everything in the textarea above with your clipboard contents (paste it)</li>
-                </ol>
-                Note: we're talking about <a href="https://tools.ietf.org/html/rfc7946" target="_blank">RFC7946 GeoJSON</a> with a WGS84 CRS.
+      <div class="col-sm">
+        <div class="card">
+          <div class="card-header">Start here</div>
+          <div class="card-body">
+            <h5 class="card-title">Where does the server live?</h5>
+            <p class="card-text">We need to know the URL that we can reach the server at.</p>
+            <form>
+              <div class="form-group">
+                <label for="inputBaseUrl" style="margin-right: 2em;">Base URL:</label>
+                <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" style="width: 26em;" class="form-control" id="inputBaseUrl">
               </div>
+              <div class="form-group">
+                <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
+                <textarea ng-model="farmVector" id="inputFarmVector"></textarea>
+                <div>To edit the farm vector:
+                  <ol>
+                    <li><a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedFarmVector()}}" target="_blank">send this GeoJSON to geojson.io</a> for editing</li>
+                    <li>copy the edited JSON from geojson.io to your clipboard</li>
+                    <li>come back to this page, replace everything in the textarea above with your clipboard contents (paste it)</li>
+                  </ol>
+                  Note: we're talking about <a href="https://tools.ietf.org/html/rfc7946" target="_blank">RFC7946 GeoJSON</a> with a WGS84 CRS.
+                </div>
+              </div>
+            </form>
+            <p class="text-center">
+              <button id="executeButton" class="btn btn-primary btn-lg" ng-click="executePollinationModel()" ng-disabled="isExecutingModel">
+                <span ng-hide="isExecutingModel">Execute pollination model</span>
+                <span ng-show="isExecutingModel">Processing...</span>
+              </button>
+            </p>
+            <div class="text-center">
+              <small class="text-muted">It usually takes ~25 seconds to run the model</small>
             </div>
-          </form>
-          <p class="text-center">
-            <a href="#" class="btn btn-primary btn-lg" ng-click="executePollinationModel()">Execute pollination model</a>
-          </p>
-          <div class="text-center">
-            <small class="text-muted">It usually takes ~25 seconds to run the model</small>
           </div>
         </div>
       </div>
@@ -75,18 +84,18 @@
             <table class="table table-responsive">
               <thead>
                 <tr>
-                  <th ng-repeat="curr in tableHeaders">{{curr}}</th>
+                  <th ng-repeat="curr in tableHeaders | onlyResults">{{curr}}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr ng-repeat="curr in resultTable">
-                  <td ng-repeat="f in tableHeaders">{{curr[f]}}</td>
+                  <td class="mono" ng-repeat="f in tableHeaders | onlyResults">{{curr[f]}}</td>
                 </tr>
               </tbody>
             </table>
             <p>See <a 
-              href="http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results">
-              http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results</a> 
+              href="http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results"
+              target="_blank">the official docs</a> 
               for how to interpret these results.</p>
           </div>
         </div>
@@ -99,7 +108,7 @@
           <div class="card-body">
             <ul class="list-group list-group-flush">
               <li ng-repeat="curr in resultImages | orderBy" class="list-group-item">
-                <a ng-href="{{url(curr)}}" target="_blank">{{curr}}</a>
+                <a ng-href="{{url(curr)}}" class="mono" target="_blank">{{curr}}</a>
               </li>
             </ul>
           </div>
@@ -115,7 +124,21 @@
     app.config(function (localStorageServiceProvider) {
       localStorageServiceProvider.setPrefix('nidf')
     })
-    app.controller('MainController', function ($scope, $http, localStorageService) {
+    app.filter('onlyResults', function() {
+      return function(x) {
+        // include crop_type so we know what the results are for
+        var accepted = ['crop_type', 'p_abund', 'pdep_y_w', 'y_tot', 'y_wild']
+        var result = []
+        for (var i = 0; i < x.length; i++) {
+          var curr = x[i]
+            if (accepted.indexOf(curr) >= 0) {
+              result.push(curr)
+            }
+        }
+        return result
+      }
+    })
+    app.controller('MainController', function ($scope, $http, $anchorScroll, $timeout, localStorageService) {
       var BASE_URL_KEY = 'base_url'
       $scope.baseUrl = getBaseUrlFromStorage()
       $scope.isExecutingModel = false
@@ -132,6 +155,9 @@
           $scope.resultTable = resp.data.records
           $scope.resultImages = resp.data.images
           $scope.tableHeaders = updateTableHeaders()
+          $timeout(function () {
+            $anchorScroll('executeButton')
+          }, 50)
         }, function(resp) {
           $scope.isExecutingModel = false
           console.error('Failed to make HTTP call')
