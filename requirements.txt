@@ -2,6 +2,7 @@ flask>=0.12
 flask-accept
 flask-cors
 flask-inputs
+geojson
 jsonschema
 pyshp
 subprocess32>=3.5.0rc1

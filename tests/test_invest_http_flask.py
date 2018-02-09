@@ -2,7 +2,7 @@ import unittest
 import os
 
 from flask import abort
-from flask.json import loads
+from flask.json import loads, dumps
 
 from .context import natcap_invest_docker_flask
 
@@ -87,6 +87,20 @@ class Test(unittest.TestCase):
         result = self.app().post('/pollination',
                 content_type='application/json', headers={'accept': 'application/json'})
         self.assertEqual(result.status_code, 400)
+
+
+    def test_pollination07(self):
+        """ Does a valid GeoJSON object that is missing the required properties on features fail validation? """
+        farm_vector_path = os.path.join(os.path.dirname(__file__), '../natcap_invest_docker_flask/static/example-farm-vector.json')
+        with open(farm_vector_path) as f:
+            data = loads(f.read())
+            for curr in data['features']:
+                del curr['properties']
+                curr['properties'] = []
+            data = dumps(data)
+        result = self.app().post('/pollination', data=data,
+                content_type='application/json', headers={'accept': 'application/json'})
+        self.assertEqual(result.status_code, 422)
 
 
     def test_get_png01(self):

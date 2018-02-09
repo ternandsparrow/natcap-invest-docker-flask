@@ -6,6 +6,7 @@ from flask_accept import accept
 from flask_cors import CORS
 from flask_inputs import Inputs
 from flask_inputs.validators import JsonSchema
+import geojson
 
 from .schema import schema as pollination_schema
 
@@ -51,14 +52,28 @@ def make_app(model_runner):
             abort(415)
         geojson_farm_vector = request.get_json()
         log_geojson(geojson_farm_vector)
+        validation_result = is_schema_valid(geojson_farm_vector)
+        if validation_result['failed']:
+            return validation_result['response']
+        result = model_runner.execute_model(geojson_farm_vector)
+        return jsonify(result)
+
+
+    def is_schema_valid(geojson_string):
+        # geojson validation
+        feature_collection = geojson.loads(dumps(geojson_string))
+        if not hasattr(feature_collection, 'is_valid') or not feature_collection.is_valid:
+            # TODO send feature_collection.errors() in response
+            return {'failed': True, 'response': abort(422)}
+        # our own JSON schema validation
         class JsonInputs(Inputs):
             json = [JsonSchema(schema=pollination_schema)]
         inputs = JsonInputs(request)
         if not inputs.validate():
             print('[DEBUG] Validation errors=%s' % inputs.errors)
-            return abort(422)
-        result = model_runner.execute_model(geojson_farm_vector)
-        return jsonify(result)
+            # TODO send inputs.errors in response
+            return {'failed': True, 'response': abort(422)}
+        return {'failed': False}
 
 
     # FIXME handle double slashes
