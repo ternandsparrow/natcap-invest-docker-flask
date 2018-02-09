@@ -196,52 +196,10 @@ schema = {
           "geometry"
         ]
       }
-    },
-    "crs": {
-      "$id": "/properties/crs",
-      "type": "object",
-      "additionalProperties": False,
-      "properties": {
-        "type": {
-          "$id": "/properties/crs/properties/type",
-          "type": "string",
-          "title": "The Type Schema",
-          "description": "An explanation about the purpose of this instance.",
-          "default": "",
-          "examples": [
-            "name"
-          ]
-        },
-        "properties": {
-          "$id": "/properties/crs/properties/properties",
-          "type": "object",
-          "additionalProperties": False,
-          "properties": {
-            "name": {
-              "$id": "/properties/crs/properties/properties/properties/name",
-              "type": "string",
-              "title": "The Name Schema",
-              "description": "An explanation about the purpose of this instance.",
-              "default": "",
-              "examples": [
-                "urn:ogc:def:crs:EPSG::26910"
-              ]
-            }
-          },
-          "required": [
-            "name"
-          ]
-        }
-      },
-      "required": [
-        "type",
-        "properties"
-      ]
     }
   },
   "required": [
     "type",
     "features",
-    "crs"
   ]
 }

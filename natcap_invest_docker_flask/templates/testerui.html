@@ -43,6 +43,14 @@
             <div class="form-group">
               <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
               <textarea ng-model="farmVector" id="inputFarmVector"></textarea>
+              <div>To edit the farm vector:
+                <ol>
+                  <li><a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedFarmVector()}}" target="_blank">send this GeoJSON to geojson.io</a> for editing</li>
+                  <li>copy the edited JSON from geojson.io to your clipboard</li>
+                  <li>come back to this page, replace everything in the textarea above with your clipboard contents (paste it)</li>
+                </ol>
+                Note: we're talking about <a href="https://tools.ietf.org/html/rfc7946" target="_blank">RFC7946 GeoJSON</a> with a WGS84 CRS.
+              </div>
             </div>
           </form>
           <p class="text-center">
@@ -136,6 +144,11 @@
           return
         }
         localStorageService.set(BASE_URL_KEY, $scope.baseUrl)
+      }
+
+      $scope.getEncodedFarmVector = function () {
+        var parsed = JSON.parse($scope.farmVector) // to remove whitespace
+        return encodeURIComponent(JSON.stringify(parsed))
       }
 
       function getBaseUrlFromStorage () {
