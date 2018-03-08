@@ -51,6 +51,7 @@ def make_app(model_runner):
         if not request.is_json:
             abort(415)
         geojson_farm_vector = request.get_json()
+        # TODO validate vector is within extent of landcover raster
         log_geojson(geojson_farm_vector)
         validation_result = is_schema_valid(geojson_farm_vector)
         if validation_result['failed']:

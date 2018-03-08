@@ -5,15 +5,22 @@ import shutil
 import natcap.invest.pollination
 import shapefile
 import subprocess32 as subprocess
+import osgeo.ogr as ogr
+import osgeo.osr as osr
 from flask import abort
 from flask.json import dumps
 
 from .invest_http_flask import SomethingFailedException
 from .helpers import get_records, extract_min_max
 
+# TODO make env var configurable
+data_dir_path = u'/data/pollination'
+workspace_parent_dir_path = u'/workspace/'
+metres_of_padding_for_crop = 3000
+
 
 def workspace_path(suffix):
-    return u'/workspace/' + str(suffix)
+    return os.path.join(workspace_parent_dir_path, str(suffix))
 
 
 def now_in_ms():
@@ -26,16 +33,17 @@ def debug(msg):
 
 class NatcapModelRunner(object):
     def execute_model(self, geojson_farm_vector):
-        unique_workspace = now_in_ms() # FIXME might not be unique with parallel requests
+        unique_workspace = now_in_ms() # FIXME not unique with parallel requests
         workspace_dir = workspace_path(unique_workspace)
         debug('using workspace dir "%s"' % workspace_dir)
         os.mkdir(workspace_dir)
         farm_vector_path = self.transform_geojson_to_shapefile(geojson_farm_vector, workspace_dir)
+        raster_path = self.create_cropped_raster(farm_vector_path, workspace_dir)
         args = {
             u'farm_vector_path': farm_vector_path,
-            u'guild_table_path': u'/data/pollination/guild_table.csv',
-            u'landcover_biophysical_table_path': u'/data/pollination/landcover_biophysical_table.csv',
-            u'landcover_raster_path': u'/data/pollination/landcover.tif',
+            u'guild_table_path': os.path.join(data_dir_path, u'guild_table.csv'),
+            u'landcover_biophysical_table_path': os.path.join(data_dir_path, u'landcover_biophysical_table.csv'),
+            u'landcover_raster_path': raster_path,
             u'results_suffix': u'',
             u'workspace_dir': workspace_dir,
         }
@@ -43,11 +51,50 @@ class NatcapModelRunner(object):
         shutil.rmtree(os.path.join(workspace_dir, u'intermediate_outputs'))
         farm_results = shapefile.Reader(os.path.join(workspace_dir, u'farm_results'))
         records = get_records(farm_results.records(), farm_results.fields)
-        images = ['/image/' + unique_workspace + '/' + x.replace('.tif', '.png')
-            for x in os.listdir(workspace_dir) if x.endswith('.tif')]
+        images = [
+            '/image/' + unique_workspace + '/' + x.replace('.tif', '.png')
+            for x in os.listdir(workspace_dir) if (x.endswith('.tif') and not x == 'landcover_cropped.tif')
+        ]
         return {
             'images': images,
             'records': records
+        }
+
+
+    def create_cropped_raster(self, farm_vector_path, workspace_dir):
+        vector_extent = self.get_extent(farm_vector_path)
+        full_raster_path = os.path.join(data_dir_path, u'south_australia_landcover.tif.gz')
+        cropped_raster_path = os.path.join(workspace_dir, 'landcover_cropped.tif')
+        subprocess.check_call([
+            '/usr/bin/gdal_translate',
+            '-projwin', # probably specific to southern hemisphere and Australia's side of 0 degree longitude
+                vector_extent['x_min'],
+                vector_extent['y_max'],
+                vector_extent['x_max'],
+                vector_extent['y_min'],
+            '-of', 'GTiff',
+            u'/vsigzip/' + full_raster_path,
+            cropped_raster_path], stdout=subprocess.DEVNULL)
+        return cropped_raster_path
+
+
+    def get_extent(self, farm_vector_path):
+        sa_lambert_epsg_code = 3107
+        target = osr.SpatialReference()
+        target.ImportFromEPSG(sa_lambert_epsg_code)
+        vector_ds = ogr.Open(farm_vector_path)
+        vector_layer = vector_ds.GetLayer()
+        geometry_collection = ogr.Geometry(ogr.wkbGeometryCollection)
+        for curr_feature in vector_layer:
+            geometry = curr_feature.GetGeometryRef()
+            geometry.TransformTo(target)
+            geometry_collection.AddGeometry(geometry)
+        x_min, x_max, y_min, y_max = geometry_collection.GetEnvelope()
+        return {
+            'x_min': str(x_min - metres_of_padding_for_crop),
+            'y_min': str(y_min - metres_of_padding_for_crop),
+            'y_max': str(y_max + metres_of_padding_for_crop),
+            'x_max': str(x_max + metres_of_padding_for_crop),
         }
 
 
@@ -66,10 +113,10 @@ class NatcapModelRunner(object):
         return farm_vector_path
     
 
-    def get_png(self, uniqueworkspace, imagename):
+    def get_png(self, unique_workspace_fragment, imagename):
         resize_percentage = '40%'
-        workspace_dir = workspace_path(uniqueworkspace)
-        png_file_path = os.path.join(workspace_dir, imagename)
+        unique_workspace_path = workspace_path(unique_workspace_fragment)
+        png_file_path = os.path.join(unique_workspace_path, imagename)
         tiff_file_path = png_file_path.replace('.png', '.tif')
         if not os.path.isfile(tiff_file_path):
             raise SomethingFailedException(abort(404)) # guard for requesting non-existing files
