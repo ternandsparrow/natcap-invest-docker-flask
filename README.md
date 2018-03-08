@@ -17,8 +17,14 @@ docker run \
 
 Then you can use it like this:
 ```bash
-curl localhost:5000/ # this will get the available links, just a healthcheck really
-curl -H 'Accept: application/json' localhost:5000/pollination # this will execute the pollination model
+curl localhost:5000/ # get available links, just a healthcheck really
+# execute the pollination model:
+curl \
+  -H 'Accept: application/json' \
+  -H 'Content-type: application/json' \
+  -d @natcap-invest-docker-flask/natcap_invest_docker_flask/static/example-farm
+-vector.json \
+  http://localhost:5000/pollination
 ```
 
 Alternatively, you can go to http://localhost:5000/tester to use a web UI to interact with the service.
@@ -48,5 +54,3 @@ The first two methods run a "real" system that will actually call natcap's code.
 ## TODO
 
  1. add something to clean up old workspace files
- 1. make farm vector file a param to /pollination
- 1. make landcover raster file a param to /pollination
