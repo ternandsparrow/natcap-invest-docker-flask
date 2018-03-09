@@ -23,6 +23,10 @@
     .mono {
       font-family: monospace;
     }
+
+    input.nidf-input {
+      width: 26em;
+    }
   </style>
 </head>
 
@@ -38,16 +42,21 @@
         <div class="card">
           <div class="card-header">Start here</div>
           <div class="card-body">
-            <h5 class="card-title">Where does the server live?</h5>
-            <p class="card-text">We need to know the URL that we can reach the server at.</p>
+            <h5 class="card-title">Build the request</h5>
             <form>
               <div class="form-group">
                 <label for="inputBaseUrl" style="margin-right: 2em;">Base URL:</label>
-                <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" style="width: 26em;" class="form-control" id="inputBaseUrl">
+                <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" class="form-control nidf-input" id="inputBaseUrl">
+                <small id="inputBaseUrlHelp" class="form-text text-muted">We need to know the URL where we can reach the server.</small>
+              </div>
+              <div class="form-group">
+                <label for="inputYears" style="margin-right: 2em;">Years to simulate</label>
+                <input type="number" ng-model="yearsToSimulate" class="form-control nidf-input" id="inputYears">
+                <small id="inputYearsHelp" class="form-text text-muted">How many years into the future should we run the simulation?</small>
               </div>
               <div class="form-group">
                 <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
-                <textarea ng-model="farmVector" id="inputFarmVector"></textarea>
+                <textarea ng-model="farmVector" id="inputFarmVector" class="mono"></textarea>
                 <div>To edit the farm vector:
                   <ol>
                     <li><a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedFarmVector()}}" target="_blank">send this GeoJSON to geojson.io</a> for editing</li>
@@ -65,7 +74,7 @@
               </button>
             </p>
             <div class="text-center">
-              <small class="text-muted">It usually takes ~25 seconds to run the model</small>
+              <small class="text-muted">Estimated run time: {{4 + (yearsToSimulate * 4)}} seconds</small>
             </div>
           </div>
         </div>
@@ -146,12 +155,13 @@
       $scope.isExecuteFailed = false
       $scope.tableHeaders = []
       $scope.farmVector = '{j{example_farm_vector|safe}j}'
+      $scope.yearsToSimulate = 3
       $scope.executePollinationModel = function () {
         $scope.isExecutingModel = true
         $scope.isExecuteFailed = false
         $scope.resultTable = null
         $scope.resultImages = null
-        return $http.post(url('/pollination'), $scope.farmVector).then(function(resp) {
+        return $http.post(url('/pollination?years=' + $scope.yearsToSimulate), $scope.farmVector).then(function(resp) {
           $scope.isExecutingModel = false
           $scope.resultTable = resp.data.records
           $scope.resultImages = resp.data.images

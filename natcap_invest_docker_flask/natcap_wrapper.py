@@ -15,9 +15,7 @@ from flask.json import dumps
 from .invest_http_flask import SomethingFailedException
 from .helpers import get_records, extract_min_max
 
-logging.basicConfig()
 logger = logging.getLogger('natcap_wrapper')
-logger.setLevel(logging.DEBUG)
 pygeo_logger = logging.getLogger('pygeoprocessing.geoprocessing')
 pygeo_logger.setLevel(logging.WARN)
 
@@ -25,6 +23,7 @@ pygeo_logger.setLevel(logging.WARN)
 data_dir_path = u'/data/pollination'
 workspace_parent_dir_path = u'/workspace/'
 metres_of_padding_for_crop = 3000
+reveg_lucode = 1337
 
 
 def workspace_path(suffix):
@@ -42,7 +41,7 @@ def generate_unique_token():
 def get_biophysical_table_row_for_year(year):
     # TODO need to work out the logic for this with scientists
     v = 0.1 * year
-    return [[1337,v,v,v,v]]
+    return [[reveg_lucode, v, v, v, v]]
 
 
 def run_natcap_pollination(farm_vector_path, landcover_biophysical_table_path,
@@ -77,24 +76,24 @@ def append_records(record_collector, new_records, year_number):
 
 
 class NatcapModelRunner(object):
-    def execute_model(self, geojson_farm_vector):
+    def execute_model(self, geojson_farm_vector, years_to_simulate, geojson_reveg_vector):
         start_ms = now_in_ms()
-        years_to_simulate = 3 # TODO make param
         unique_workspace = generate_unique_token()
         workspace_dir = workspace_path(unique_workspace)
         logger.debug('using workspace dir "%s"' % workspace_dir)
         os.mkdir(workspace_dir)
         farm_vector_path = self.transform_geojson_to_shapefile(geojson_farm_vector, workspace_dir)
+        reveg_vector_path = None # use geojson_reveg_vector, figure out what we need to mask the raster
         landcover_raster_path = self.create_cropped_raster(farm_vector_path, workspace_dir)
         records = []
         year0_records = self.run_year0(farm_vector_path, landcover_raster_path, workspace_dir)
         append_records(records, year0_records, 0)
-        for curr_year in range(1, years_to_simulate):
+        for curr_year in range(1, years_to_simulate + 1):
             is_keep_images = curr_year == years_to_simulate
             year_records = self.run_future_year(farm_vector_path, landcover_raster_path,
-                    workspace_dir, curr_year, is_keep_images)
+                    workspace_dir, curr_year, is_keep_images, reveg_vector_path)
             append_records(records, year_records, curr_year)
-        images = []
+        images = [] # TODO what do we want to return? year0 raster with farm shown and final year raster with farm and reveg?
         #     os.path.join('/image', unique_workspace, x.replace('.tif', '.png'))
         #     for x in os.listdir(workspace_dir)
         #     if (x.endswith('.tif') and not x == 'landcover_cropped.tif')
@@ -117,7 +116,7 @@ class NatcapModelRunner(object):
         return records
 
 
-    def run_future_year(self, farm_vector_path, landcover_raster_path, workspace_dir, year_number, is_keep_images):
+    def run_future_year(self, farm_vector_path, landcover_raster_path, workspace_dir, year_number, is_keep_images, reveg_vector_path):
         logger.debug('processing year %s' % str(year_number))
         year_workspace_dir_path = os.path.join(workspace_dir, 'year' + str(year_number))
         os.mkdir(year_workspace_dir_path)
@@ -132,8 +131,7 @@ class NatcapModelRunner(object):
             f.write(bp_table_header)
             np.savetxt(f, new_bp_table, fmt='%d,%.6f,%.6f,%.6f,%.6f')
         new_landcover_raster_path = os.path.join(year_workspace_dir_path, 'landcover_raster.tif')
-        reveg_vector = None # TODO get vector
-        self.add_reveg_to_raster(landcover_raster_path, new_landcover_raster_path, reveg_vector)
+        self.add_reveg_to_raster(landcover_raster_path, new_landcover_raster_path, reveg_vector_path)
         records = run_natcap_pollination(farm_vector_path, landcover_bp_table_path,
             new_landcover_raster_path, year_workspace_dir_path, is_keep_images)
         return records

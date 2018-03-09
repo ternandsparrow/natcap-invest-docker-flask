@@ -27,7 +27,7 @@ class Test(unittest.TestCase):
     def test_pollination01(self):
         """ can we execute the pollination model? """
         class StubModelRunner(object):
-            def execute_model(self, geojson_farm_vector):
+            def execute_model(self, geojson_farm_vector, years_to_simulate, geojson_reveg_vector):
                 return {
                     'images': ['/images/123/image1.png'],
                     'records': [{

@@ -1,4 +1,5 @@
 import os
+import logging
 
 from flask import Flask, jsonify, send_file, render_template, request, abort
 from flask.json import dumps
@@ -10,13 +11,19 @@ import geojson
 
 from .schema import schema as pollination_schema
 
+logging.basicConfig()
+logger = logging.getLogger('natcap_wrapper')
+logger.setLevel(logging.DEBUG)
+
+DEFAULT_YEARS_TO_SIMULATE = 3
+
 def log_geojson(data):
     data_str = dumps(data)
     if len(data_str) > 30:
         msg = data_str[:30] + '...' 
     else:
         msg = data_str
-    print('[DEBUG] supplied GeoJSON=%s' % msg)
+    logger.debug('supplied GeoJSON=%s' % msg)
 
 # FIXME can we create a class and pass this to the constructor?
 def make_app(model_runner):
@@ -56,7 +63,9 @@ def make_app(model_runner):
         validation_result = is_schema_valid(geojson_farm_vector)
         if validation_result['failed']:
             return validation_result['response']
-        result = model_runner.execute_model(geojson_farm_vector)
+        years_to_simulate = request.args.get('years', default=DEFAULT_YEARS_TO_SIMULATE, type=int)
+        geojson_reveg_vector = None # TODO make this a param
+        result = model_runner.execute_model(geojson_farm_vector, years_to_simulate, geojson_reveg_vector)
         return jsonify(result)
 
 
@@ -71,7 +80,7 @@ def make_app(model_runner):
             json = [JsonSchema(schema=pollination_schema)]
         inputs = JsonInputs(request)
         if not inputs.validate():
-            print('[DEBUG] Validation errors=%s' % inputs.errors)
+            logger.debug('validation errors=%s' % inputs.errors)
             # TODO send inputs.errors in response
             return {'failed': True, 'response': abort(422)}
         return {'failed': False}
