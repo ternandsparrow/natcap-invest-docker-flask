@@ -3,26 +3,30 @@ set -e
 cd `dirname "$0"`
 apt-get update
 # apt-get dist-upgrade # TODO might improve security
+
+apt-get --assume-yes install \
+  wget
+our_dir=/tmp/foo
+mkdir $our_dir
+raster_archive=$our_dir/raster.zip
+wget \
+  -O $raster_archive \
+  'https://github.com/tomsaleeba/landuse-raster-south-australia/releases/download/20180307-33m/landuse_raster_south_australia_33m_20180307.zip' &
+
 apt-get --assume-yes install \
   gdal-bin \
   python-setuptools \
   python-dev \
   gcc \
-  wget \
   unzip
 pip install -r requirements.txt
 data_dir=/data/pollination
 pushd $data_dir
 rm -rf *
 popd
-pushd /tmp
-our_dir=foo
-mkdir $our_dir
-cd $our_dir
-raster_archive=raster.zip
-wget \
-  -O $raster_archive \
-  'https://github.com/tomsaleeba/landuse-raster-south-australia/releases/download/20180307-33m/landuse_raster_south_australia_33m_20180307.zip'
+
+pushd $our_dir
+wait # for wget to finish
 unzip $raster_archive
 tif_count=`bash -c 'ls -1 *.tif | wc -l'`
 if [ "$tif_count" != "1" ]; then

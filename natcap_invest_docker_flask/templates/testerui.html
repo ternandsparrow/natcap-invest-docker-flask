@@ -127,13 +127,14 @@
     app.filter('onlyResults', function() {
       return function(x) {
         // include crop_type so we know what the results are for
-        var accepted = ['crop_type', 'p_abund', 'pdep_y_w', 'y_tot', 'y_wild']
+        var accepted = ['year', 'crop_type', 'p_abund', 'pdep_y_w', 'y_tot', 'y_wild']
         var result = []
         for (var i = 0; i < x.length; i++) {
           var curr = x[i]
-            if (accepted.indexOf(curr) >= 0) {
-              result.push(curr)
-            }
+          var isCurrAccepted = accepted.indexOf(curr) >= 0
+          if (isCurrAccepted) {
+            result.push(curr)
+          }
         }
         return result
       }
