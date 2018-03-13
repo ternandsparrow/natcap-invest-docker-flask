@@ -83,7 +83,6 @@ class NatcapModelRunner(object):
         logger.debug('using workspace dir "%s"' % workspace_dir)
         os.mkdir(workspace_dir)
         farm_vector_path = self.transform_geojson_to_shapefile(geojson_farm_vector, workspace_dir)
-        reveg_vector_path = None # use geojson_reveg_vector, figure out what we need to mask the raster
         landcover_raster_path = self.create_cropped_raster(farm_vector_path, workspace_dir)
         records = []
         year0_records = self.run_year0(farm_vector_path, landcover_raster_path, workspace_dir)
@@ -91,7 +90,7 @@ class NatcapModelRunner(object):
         for curr_year in range(1, years_to_simulate + 1):
             is_keep_images = curr_year == years_to_simulate
             year_records = self.run_future_year(farm_vector_path, landcover_raster_path,
-                    workspace_dir, curr_year, is_keep_images, reveg_vector_path)
+                    workspace_dir, curr_year, is_keep_images, geojson_reveg_vector)
             append_records(records, year_records, curr_year)
         images = [] # TODO what do we want to return? year0 raster with farm shown and final year raster with farm and reveg?
         #     os.path.join('/image', unique_workspace, x.replace('.tif', '.png'))
@@ -116,7 +115,7 @@ class NatcapModelRunner(object):
         return records
 
 
-    def run_future_year(self, farm_vector_path, landcover_raster_path, workspace_dir, year_number, is_keep_images, reveg_vector_path):
+    def run_future_year(self, farm_vector_path, landcover_raster_path, workspace_dir, year_number, is_keep_images, reveg_vector):
         logger.debug('processing year %s' % str(year_number))
         year_workspace_dir_path = os.path.join(workspace_dir, 'year' + str(year_number))
         os.mkdir(year_workspace_dir_path)
@@ -130,20 +129,32 @@ class NatcapModelRunner(object):
         with open(landcover_bp_table_path, 'w') as f:
             f.write(bp_table_header)
             np.savetxt(f, new_bp_table, fmt='%d,%.6f,%.6f,%.6f,%.6f')
-        new_landcover_raster_path = os.path.join(year_workspace_dir_path, 'landcover_raster.tif')
-        self.add_reveg_to_raster(landcover_raster_path, new_landcover_raster_path, reveg_vector_path)
+        new_landcover_raster_path = self.burn_reveg_on_raster(landcover_raster_path, reveg_vector, year_workspace_dir_path)
         records = run_natcap_pollination(farm_vector_path, landcover_bp_table_path,
             new_landcover_raster_path, year_workspace_dir_path, is_keep_images)
         return records
 
 
-    def add_reveg_to_raster(self, year0_raster_path, new_raster_path, reveg_vector):
-        # TODO adjust pixels in raster
+    def burn_reveg_on_raster(self, year0_raster_path, reveg_vector, year_workspace_dir_path):
+        """ clones the raster and burns the reveg landuse code into the clone using the vector """
         data = None
+        result_path = os.path.join(year_workspace_dir_path, 'landcover_raster.tif')
         with open(year0_raster_path, 'r') as f:
             data = f.read()
-        with open(new_raster_path, 'w') as f:
+        with open(result_path, 'w') as f:
             f.write(data)
+        reveg_vector_path = os.path.join(year_workspace_dir_path, 'reveg_geojson.json')
+        with open(reveg_vector_path, 'w') as f:
+            f.write(dumps(reveg_vector))
+        reprojected_reveg_vector_path = self.reproject_geojson_to_epsg3107(year_workspace_dir_path, reveg_vector_path)
+        # feel the burn!
+        subprocess.check_call([
+            '/usr/bin/gdal_rasterize',
+            '-burn', str(reveg_lucode),
+            '-l', 'OGRGeoJSON',
+            reprojected_reveg_vector_path,
+            result_path], stdout=subprocess.DEVNULL)
+        return result_path
 
 
     def create_cropped_raster(self, farm_vector_path, workspace_dir):
@@ -183,6 +194,17 @@ class NatcapModelRunner(object):
         }
 
 
+    def reproject_geojson_to_epsg3107(self, workspace_dir_path, geojson_path):
+        result_path = os.path.join(workspace_dir_path, 'reprojected_reveg_geojson.json')
+        subprocess.check_call([
+            '/usr/bin/ogr2ogr',
+            '-s_srs', 'EPSG:4326', # assuming the incoming geojson has no CRS so WGS84 is implied
+            '-t_srs', 'EPSG:3107',
+            '-f', 'GeoJSON',
+            result_path,
+            geojson_path], stdout=subprocess.DEVNULL)
+        return result_path
+
     def transform_geojson_to_shapefile(self, geojson_farm_vector, workspace_dir):
         """ Writes the supplied GeoJSON to a file, then transforms it
             to a shapefile and returns the path to that shapefile """
@@ -190,6 +212,7 @@ class NatcapModelRunner(object):
         geojson_path = os.path.join(workspace_dir, u'farms.json')
         with open(geojson_path, 'w') as f:
             f.write(dumps(geojson_farm_vector))
+        # TODO do we need to reproject GDA94 GeoJSON into EPSG:3107?
         subprocess.check_call([
             '/usr/bin/ogr2ogr',
             '-f', 'ESRI Shapefile',

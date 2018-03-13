@@ -17,13 +17,21 @@ logger.setLevel(logging.DEBUG)
 
 DEFAULT_YEARS_TO_SIMULATE = 3
 
-def log_geojson(data):
+def log_geojson(data, type_of_vector):
     data_str = dumps(data)
     if len(data_str) > 30:
         msg = data_str[:30] + '...' 
     else:
         msg = data_str
-    logger.debug('supplied GeoJSON=%s' % msg)
+    logger.debug('supplied %s GeoJSON=%s' % (type_of_vector, msg))
+
+
+def read_example_json(file_path):
+    with open(file_path) as f:
+        with_newlines = f.read()
+        result = with_newlines.replace('\n', '\\n')
+        return result
+
 
 # FIXME can we create a class and pass this to the constructor?
 def make_app(model_runner):
@@ -57,31 +65,52 @@ def make_app(model_runner):
         """ executes the InVEST pollination model and returns the results """
         if not request.is_json:
             abort(415)
-        geojson_farm_vector = request.get_json()
-        # TODO validate vector is within extent of landcover raster
-        log_geojson(geojson_farm_vector)
-        validation_result = is_schema_valid(geojson_farm_vector)
+        post_body = request.get_json()
+        validation_result = is_request_valid(post_body)
         if validation_result['failed']:
             return validation_result['response']
         years_to_simulate = request.args.get('years', default=DEFAULT_YEARS_TO_SIMULATE, type=int)
-        geojson_reveg_vector = None # TODO make this a param
+        geojson_farm_vector = post_body['farm']
+        # TODO validate farm vector is within extent of landcover raster
+        log_geojson(geojson_farm_vector, 'farm')
+        geojson_reveg_vector = post_body['reveg']
+        # TODO validate the reveg vector is in an appropriate location compared with the farm. Probably within a few kms is good enough
+        log_geojson(geojson_reveg_vector, 'reveg')
         result = model_runner.execute_model(geojson_farm_vector, years_to_simulate, geojson_reveg_vector)
         return jsonify(result)
 
 
-    def is_schema_valid(geojson_string):
-        # geojson validation
-        feature_collection = geojson.loads(dumps(geojson_string))
-        if not hasattr(feature_collection, 'is_valid') or not feature_collection.is_valid:
-            # TODO send feature_collection.errors() in response
+    def is_request_valid(request_dict):
+        try:
+            request_dict['farm']
+            request_dict['reveg']
+        except KeyError:
             return {'failed': True, 'response': abort(422)}
-        # our own JSON schema validation
+        farm_validation_result = is_valid_geojson(request_dict['farm'])
+        if farm_validation_result['failed']: return farm_validation_result['response']
+        reveg_validation_result = is_valid_geojson(request_dict['reveg'])
+        if reveg_validation_result['failed']: return reveg_validation_result['response']
+        schema_validation_result = do_json_schema_validation()
+        if schema_validation_result['failed']: return schema_validation_result['response']
+        return {'failed': False}
+
+
+    def do_json_schema_validation():
         class JsonInputs(Inputs):
             json = [JsonSchema(schema=pollination_schema)]
         inputs = JsonInputs(request)
         if not inputs.validate():
             logger.debug('validation errors=%s' % inputs.errors)
             # TODO send inputs.errors in response
+            return {'failed': True, 'response': abort(422)}
+        return {'failed': False}
+
+
+    def is_valid_geojson(geojson_dict):
+        geojson_obj = geojson.loads(dumps(geojson_dict))
+        is_geojson_obj_not_valid = not hasattr(geojson_obj, 'is_valid') or not geojson_obj.is_valid
+        if is_geojson_obj_not_valid:
+            # TODO send geojson_obj.errors() in response
             return {'failed': True, 'response': abort(422)}
         return {'failed': False}
 
@@ -103,12 +132,11 @@ def make_app(model_runner):
     @app.route('/tester')
     def tester():
         """ returns a UI for interacting with this service """
-        example_farm_vector_path = os.path.join(app_static, 'example-farm-vector.json')
-        with open(example_farm_vector_path) as f:
-            with_newlines = f.read()
-            example_farm_vector = with_newlines.replace('\n', '\\n')
+        example_farm_vector = read_example_json(os.path.join(app_static, 'example-farm-vector.json'))
+        example_reveg_vector = read_example_json(os.path.join(app_static, 'example-reveg-vector.json'))
         return render_template('testerui.html',
                 example_farm_vector=example_farm_vector,
+                example_reveg_vector=example_reveg_vector,
                 url_root=request.url_root)
 
 

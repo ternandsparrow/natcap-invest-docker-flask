@@ -18,12 +18,13 @@ docker run \
 Then you can use it like this:
 ```bash
 curl localhost:5000/ # get available links, just a healthcheck really
-cd natcap-invest-docker-flask/
+cd natcap-invest-docker-flask/natcap_invest_docker_flask/static/
 # execute the pollination model:
-curl \
+echo '{"farm":'`cat example-farm-vector.json`',"reveg":'`cat example-reveg-vector.json`'}' \
+  | curl \
   -H 'Accept: application/json' \
   -H 'Content-type: application/json' \
-  -d @natcap_invest_docker_flask/static/example-farm-vector.json \
+  -d @- \
   'http://localhost:5000/pollination?years=2'
 ```
 
