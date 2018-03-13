@@ -7,21 +7,31 @@ It's executable so just run it.
 """
 import os
 import sys
+import base64
 thisdir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import natcap_invest_docker_flask
 
+
+def get_base64_image_src_string(image_path):
+    with open(image_path, 'rb') as f:
+        return str(base64.b64encode(f.read()))
+
+
 class StubModelRunner(object):
-    def execute_model(self, geojson_farm_vector):
+    def execute_model(self, geojson_farm_vector, years_to_simulate, geojson_reveg_vector):
         print('received farm vector=%s...' % str(geojson_farm_vector)[:30])
+        records = []
+        for curr in range(1, years_to_simulate + 1):
+            records.append({'crop_type': 'stub1', 'year': curr})
+            records.append({'crop_type': 'stub2', 'year': curr})
         return {
-            'images': ['image1'],
-            'records': [{'crop_type': 'stub1'}, {'crop_type': 'stub2'}]
+            'images': {
+                'base': get_base64_image_src_string(os.path.join(thisdir, 'images', 'farm.png')),
+                'reveg': get_base64_image_src_string(os.path.join(thisdir, 'images', 'farm-and-reveg.png'))
+            },
+            'records': records
         }
-
-
-    def get_png(self, _, _2):
-        return os.path.join(thisdir, 'onewhitepixel.png')
 
 
 app = natcap_invest_docker_flask.make_app(StubModelRunner())

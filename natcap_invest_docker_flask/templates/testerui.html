@@ -125,13 +125,17 @@
     <div class="row" ng-show="resultImages">
       <div class="col-sm">
         <div class="card">
-          <div class="card-header">Results: Images</div>
-          <div class="card-body">
-            <ul class="list-group list-group-flush">
-              <li ng-repeat="curr in resultImages | orderBy" class="list-group-item">
-                <a ng-href="{{url(curr)}}" class="mono" target="_blank">{{curr}}</a>
-              </li>
-            </ul>
+          <div class="card-header">Current state</div>
+          <div class="card-body text-center">
+            <img ng-src="data:image/png;base64,{{resultImages.base}}">
+          </div>
+        </div>
+      </div>
+      <div class="col-sm">
+        <div class="card">
+          <div class="card-header">With revegetation</div>
+          <div class="card-body text-center">
+            <img ng-src="data:image/png;base64,{{resultImages.reveg}}">
           </div>
         </div>
       </div>

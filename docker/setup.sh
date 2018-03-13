@@ -21,11 +21,17 @@ function get_raster {
     exit 1
   fi
   gzip *.tif
-  mv *.tif.gz $data_dir/south_australia_landcover.tif.gz
+  theArchive=$data_dir/south_australia_landcover.tif.gz
+  mv *.tif.gz $theArchive
+  if [ ! -f $theArchive ]; then
+    echo "[ERROR] expected $theArchive to be present and it wasn't"
+    exit 1
+  fi
   popd
 }
 
 apt-get --assume-yes install \
+  unzip \
   wget
 get_raster &
 
@@ -34,7 +40,7 @@ apt-get --assume-yes install \
   python-setuptools \
   python-dev \
   gcc \
-  unzip
+  optipng
 
 function install_deps {
   pip install -r requirements.txt

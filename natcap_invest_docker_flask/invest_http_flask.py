@@ -115,20 +115,6 @@ def make_app(model_runner):
         return {'failed': False}
 
 
-    # FIXME handle double slashes
-    @app.route('/image/<uniqueworkspace>/<imagename>')
-    def get_png(uniqueworkspace, imagename):
-        """ fetches the PNG version of a GeoTIFF in a lazy-init way """
-        try:
-            png_file_path = model_runner.get_png(uniqueworkspace, imagename)
-            return send_file(png_file_path, mimetype='image/png')
-        except SomethingFailedException as e:
-            return e.http_resp
-
-
-    # TODO add endpoint to retrieve GeoTIFF images
-
-
     @app.route('/tester')
     def tester():
         """ returns a UI for interacting with this service """

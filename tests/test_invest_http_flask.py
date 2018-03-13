@@ -118,30 +118,6 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 422)
 
 
-    def test_get_png01(self):
-        """ can we get a PNG when it is present? """
-        parentself = self
-        class StubModelRunner(object):
-            def get_png(self, uniqueworkspace, imagename):
-                parentself.assertEqual(uniqueworkspace, '456')
-                parentself.assertEqual(imagename, 'someimage.png')
-                thisdir = os.path.dirname(os.path.realpath(__file__))
-                return os.path.join(thisdir, 'onewhitepixel.png')
-        result = self.app(StubModelRunner()).get('/image/456/someimage.png')
-        first8bytes = ':'.join(x.encode('hex') for x in result.data[0:8])
-        png_magic_number = '89:50:4e:47:0d:0a:1a:0a'
-        self.assertEqual(first8bytes, png_magic_number)
-
-
-    def test_get_png02(self):
-        """ is a non-200 status code propgated up? """
-        class StubModelRunner(object):
-            def get_png(self, uniqueworkspace, imagename):
-                raise natcap_invest_docker_flask.SomethingFailedException(abort(404))
-        result = self.app(StubModelRunner()).get('/image/456/notthere.png')
-        self.assertEqual(result.status_code, 404)
-
-
     def test_tester01(self):
         """ can we get the tester UI? """
         result = self.app().get('/tester')

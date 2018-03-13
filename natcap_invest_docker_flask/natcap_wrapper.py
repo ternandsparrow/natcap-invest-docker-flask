@@ -2,6 +2,7 @@ import time
 import os
 import shutil
 import logging
+import base64
 
 import natcap.invest.pollination
 import shapefile
@@ -24,6 +25,9 @@ data_dir_path = u'/data/pollination'
 workspace_parent_dir_path = u'/workspace/'
 metres_of_padding_for_crop = 3000
 reveg_lucode = 1337
+farm_lucode = 2000
+farm_layer_and_file_name = u'farms'
+reproj_reveg_filename = u'reprojected_reveg_geojson.json'
 
 
 def workspace_path(suffix):
@@ -92,17 +96,42 @@ class NatcapModelRunner(object):
             year_records = self.run_future_year(farm_vector_path, landcover_raster_path,
                     workspace_dir, curr_year, is_keep_images, geojson_reveg_vector)
             append_records(records, year_records, curr_year)
-        images = [] # TODO what do we want to return? year0 raster with farm shown and final year raster with farm and reveg?
-        #     os.path.join('/image', unique_workspace, x.replace('.tif', '.png'))
-        #     for x in os.listdir(workspace_dir)
-        #     if (x.endswith('.tif') and not x == 'landcover_cropped.tif')
-        # ]
         elapsed_ms = now_in_ms() - start_ms
         logger.debug('execution time %dms' % elapsed_ms)
         return {
-            'images': images,
+            'images': self.generate_images(workspace_dir, landcover_raster_path, farm_vector_path),
             'records': records
         }
+
+
+    def generate_images(self, workspace_dir, landcover_raster_path, farm_vector_path):
+        """ generates the images and reads in the bytes of each image """
+        result = {}
+        year0_farm_on_raster_path = os.path.join(workspace_dir, 'landcover_and_farm.png')
+        subprocess.check_call([
+            '/app/burn-vector-to-raster-png.sh',
+            landcover_raster_path,
+            year0_farm_on_raster_path,
+            farm_vector_path,
+            farm_layer_and_file_name,
+            str(farm_lucode)], stdout=subprocess.DEVNULL)
+        with open(year0_farm_on_raster_path, 'rb') as f1:
+            result['base'] = base64.b64encode(f1.read())
+        reveg_vector_path = os.path.join(workspace_dir, 'year1', reproj_reveg_filename)
+        is_only_year0_run = not os.path.isfile(reveg_vector_path)
+        if is_only_year0_run:
+            return result
+        reveg_and_farm_on_raster_path = os.path.join(workspace_dir, 'landcover_and_farm_and_reveg.png')
+        subprocess.check_call([
+            '/app/burn-vector-to-raster-png.sh',
+            year0_farm_on_raster_path.replace('.png', '.tif'),
+            reveg_and_farm_on_raster_path,
+            reveg_vector_path,
+            'OGRGeoJSON',
+            str(reveg_lucode)], stdout=subprocess.DEVNULL)
+        with open(reveg_and_farm_on_raster_path, 'rb') as f2:
+            result['reveg'] = base64.b64encode(f2.read())
+        return result
 
 
     def run_year0(self, farm_vector_path, landcover_raster_path, workspace_dir):
@@ -195,7 +224,7 @@ class NatcapModelRunner(object):
 
 
     def reproject_geojson_to_epsg3107(self, workspace_dir_path, geojson_path):
-        result_path = os.path.join(workspace_dir_path, 'reprojected_reveg_geojson.json')
+        result_path = os.path.join(workspace_dir_path, reproj_reveg_filename)
         subprocess.check_call([
             '/usr/bin/ogr2ogr',
             '-s_srs', 'EPSG:4326', # assuming the incoming geojson has no CRS so WGS84 is implied
@@ -208,44 +237,17 @@ class NatcapModelRunner(object):
     def transform_geojson_to_shapefile(self, geojson_farm_vector, workspace_dir):
         """ Writes the supplied GeoJSON to a file, then transforms it
             to a shapefile and returns the path to that shapefile """
-        farm_vector_path = os.path.join(workspace_dir, u'farms.shp')
-        geojson_path = os.path.join(workspace_dir, u'farms.json')
+        farm_vector_path = os.path.join(workspace_dir, farm_layer_and_file_name + u'.shp')
+        geojson_path = os.path.join(workspace_dir, farm_layer_and_file_name + u'.json')
         with open(geojson_path, 'w') as f:
             f.write(dumps(geojson_farm_vector))
         # TODO do we need to reproject GDA94 GeoJSON into EPSG:3107?
         subprocess.check_call([
             '/usr/bin/ogr2ogr',
+            '-s_srs', 'EPSG:4326', # assuming the incoming geojson has no CRS so WGS84 is implied
+            '-t_srs', 'EPSG:3107',
             '-f', 'ESRI Shapefile',
             farm_vector_path,
             geojson_path], stdout=subprocess.DEVNULL)
         return farm_vector_path
     
-
-    def get_png(self, unique_workspace_fragment, imagename):
-        resize_percentage = '40%'
-        unique_workspace_path = workspace_path(unique_workspace_fragment)
-        png_file_path = os.path.join(unique_workspace_path, imagename)
-        tiff_file_path = png_file_path.replace('.png', '.tif')
-        if not os.path.isfile(tiff_file_path):
-            raise SomethingFailedException(abort(404)) # guard for requesting non-existing files
-        if not imagename.endswith('.png'):
-            raise SomethingFailedException(abort(400)) # TODO add message that only PNG is supported
-        if os.path.isfile(png_file_path):
-            return png_file_path
-        logger.debug('generating PNG from "%s"' % tiff_file_path)
-        shelloutput = subprocess.check_output('gdalinfo %s | grep "Min="' % tiff_file_path, shell=True)
-        minmax = extract_min_max(shelloutput)
-        min_scale = minmax['min']
-        max_scale = minmax['max']
-        # Our version of gdal (v1.11.x) is too old to have translate() and info()
-        # binding in the python API, only >v2 seems to have that.
-        # So we resort to using the shell commands that give us the functionality.
-        subprocess.check_call([
-            '/usr/bin/gdal_translate',
-            '-of', 'PNG',
-            '-ot', 'Byte',
-            '-scale', min_scale, max_scale,
-            '-outsize', resize_percentage, resize_percentage,
-            tiff_file_path,
-            png_file_path], stdout=subprocess.DEVNULL)
-        return png_file_path
