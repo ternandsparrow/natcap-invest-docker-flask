@@ -36,7 +36,7 @@ which optipng 2>&1 > /dev/null
 OPTI_RC=$?
 set -e
 if [ $OPTI_RC == 0 ]; then
-  optipng $destPng
+  optipng -quiet $destPng
 fi
 # don't delete intermediate .tif, we use the farm-only one to add the reveg
 rm -f *.aux.xml

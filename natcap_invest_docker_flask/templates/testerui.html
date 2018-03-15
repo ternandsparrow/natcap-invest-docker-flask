@@ -31,6 +31,22 @@
     label {
       font-weight: bold;
     }
+
+    .square {
+      padding: 0 0.4em;
+    }
+
+    .farm-colour {
+      background-color: rgb(202, 0, 172);
+    }
+
+    .reveg-colour {
+      background-color: rgb(0, 202, 30);
+    }
+
+    .raster-img {
+      max-width: 100%;
+    }
   </style>
 </head>
 
@@ -44,7 +60,23 @@
     <div class="row justify-content-center">
       <div class="col-sm">
         <div class="card">
-          <div class="card-header">Build the request</div>
+          <div class="card-header">About this tool</div>
+          <div class="card-body">
+            This is a tester page. It's very basic and looks pretty average but that's ok. Its purpose is to provide
+            an easy way to test the execution of the pollination model. It's also a demo of how to build a request
+            and how the results can be displayed. You can find the source code for this app on
+            <a href="https://github.com/tomsaleeba/natcap-invest-docker-flask" target="_blank">GitHub</a>.
+            <br /><br />
+            To use the tool, adjust values as needed in the next section. Then press the 'Execute' button at the bottom
+            of the page to run the model. Results will the appear below the button.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row justify-content-center">
+      <div class="col-sm">
+        <div class="card">
+          <div class="card-header">Start here!</div>
           <div class="card-body">
             <form>
               <div class="form-group">
@@ -86,7 +118,7 @@
               </button>
             </p>
             <div class="text-center">
-              <small class="text-muted">Estimated run time: {{4 + (yearsToSimulate * 4)}} seconds</small>
+              <small class="text-muted">Estimated run time: {{4 + yearsToSimulate}} seconds</small>
             </div>
           </div>
         </div>
@@ -125,17 +157,20 @@
     <div class="row" ng-show="resultImages">
       <div class="col-sm">
         <div class="card">
-          <div class="card-header">Current state</div>
+          <div class="card-header">Current farm configuration</div>
           <div class="card-body text-center">
-            <img ng-src="data:image/png;base64,{{resultImages.base}}">
+            <img ng-src="data:image/png;base64,{{resultImages.base}}" class="raster-img">
+            <div><span class="square farm-colour">&nbsp;</span> Farm</div>
           </div>
         </div>
       </div>
       <div class="col-sm">
         <div class="card">
-          <div class="card-header">With revegetation</div>
+          <div class="card-header">Future farm configuration with revegetation</div>
           <div class="card-body text-center">
-            <img ng-src="data:image/png;base64,{{resultImages.reveg}}">
+            <img ng-src="data:image/png;base64,{{resultImages.reveg}}" class="raster-img">
+            <div><span class="square farm-colour">&nbsp;</span> Farm</div>
+            <div><span class="square reveg-colour">&nbsp;</span> Revegetation</div>
           </div>
         </div>
       </div>
@@ -208,6 +243,9 @@
       }
 
       $scope.getEncodedVector = function (vectorData) {
+        if (!vectorData) {
+          return ''
+        }
         var parsed = JSON.parse(vectorData) // to remove whitespace
         return encodeURIComponent(JSON.stringify(parsed))
       }
