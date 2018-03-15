@@ -5,12 +5,12 @@ apt-get update
 # apt-get dist-upgrade # TODO might improve security
 
 data_dir=/data/pollination
-our_dir=/tmp/foo
-raster_archive=$our_dir/raster.zip
 
 function get_raster {
+  our_dir=/tmp/foo
   mkdir $our_dir
   pushd $our_dir
+  raster_archive=$our_dir/raster.zip
   wget \
     -O $raster_archive \
     'https://github.com/tomsaleeba/landuse-raster-south-australia/releases/download/20180307-33m/landuse_raster_south_australia_33m_20180307.zip'
@@ -21,6 +21,9 @@ function get_raster {
     exit 1
   fi
   gzip *.tif
+  pushd $data_dir
+  rm -rf *
+  popd
   theArchive=$data_dir/south_australia_landcover.tif.gz
   mv *.tif.gz $theArchive
   if [ ! -f $theArchive ]; then
@@ -42,14 +45,7 @@ apt-get --assume-yes install \
   gcc \
   optipng
 
-function install_deps {
-  pip install -r requirements.txt
-  pushd $data_dir
-  rm -rf *
-  popd
-}
-
-install_deps &
+pip install -r requirements.txt
 wait
 
 mv *.csv $data_dir
