@@ -38,11 +38,6 @@ cd natcap-invest-docker-flask/
 ./docker-build.sh
 ```
 
-Then you can push to DockerHub with:
-```bash
-docker push tomsaleeba/natcap-invest-docker-flask
-```
-
 ## Faster development iterations
 
 There are 3 ways to run this project:
