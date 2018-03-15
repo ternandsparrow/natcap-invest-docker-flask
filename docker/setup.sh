@@ -49,6 +49,7 @@ pip install -r requirements.txt
 wait
 
 mv *.csv $data_dir
+rm -r /workspace/pollination/
 apt-get --assume-yes purge \
   python-setuptools \
   python-dev \

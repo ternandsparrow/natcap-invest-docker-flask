@@ -22,11 +22,10 @@ logger = logging.getLogger('natcap_wrapper')
 pygeo_logger = logging.getLogger('pygeoprocessing.geoprocessing')
 pygeo_logger.setLevel(logging.WARN)
 
-try:
-    metres_of_padding_for_farm = int(os.environ['FARM_PADDING_METRES'])
-except KeyError:
-    metres_of_padding_for_farm = 3000
+metres_of_padding_for_farm = int(os.getenv('FARM_PADDING_METRES', 3000))
 logger.info('Using farm padding of %d metres' % metres_of_padding_for_farm)
+is_purge_workspace = bool(int(os.getenv('PURGE_WORKSPACE', 1)))
+logger.info('Purge workspace after run = %s' % is_purge_workspace)
 
 data_dir_path = u'/data/pollination'
 workspace_parent_dir_path = u'/workspace/'
@@ -66,17 +65,8 @@ def run_natcap_pollination(farm_vector_path, landcover_biophysical_table_path,
         u'workspace_dir': workspace_dir_path,
     }
     natcap.invest.pollination.execute(args)
-    shutil.rmtree(os.path.join(workspace_dir_path, u'intermediate_outputs'))
     farm_results = shapefile.Reader(os.path.join(workspace_dir_path, u'farm_results'))
     records = get_records(farm_results.records(), farm_results.fields)
-    images = [x for x in os.listdir(workspace_dir_path) if x.endswith('.tif')]
-    for curr in images:
-        try:
-            curr_path = os.path.join(workspace_dir_path, curr)
-            os.remove(curr_path)
-        except Exception as e:
-            logger.error('failed to remove image %s, cause "%s"' % (curr, str(e)))
-    # TODO delete workspace dir
     return records
 
 
@@ -236,8 +226,7 @@ def transform_geojson_to_shapefile(geojson_vector, filename_fragment, workspace_
 class NatcapModelRunner(object):
     def execute_model(self, geojson_farm_vector, years_to_simulate, geojson_reveg_vector):
         start_ms = now_in_ms()
-        unique_workspace = generate_unique_token()
-        workspace_dir = workspace_path(unique_workspace)
+        workspace_dir = workspace_path(generate_unique_token())
         logger.debug('using workspace dir "%s"' % workspace_dir)
         os.mkdir(workspace_dir)
         farm_vector_path = transform_geojson_to_shapefile(geojson_farm_vector, farm_layer_and_file_name, workspace_dir)
@@ -262,6 +251,8 @@ class NatcapModelRunner(object):
             'images': generate_images(workspace_dir, landcover_raster_path, farm_vector_path),
             'records': records
         }
+        if is_purge_workspace:
+            shutil.rmtree(workspace_dir)
         logger.debug('execution time %dms' % elapsed_ms)
         return result
     

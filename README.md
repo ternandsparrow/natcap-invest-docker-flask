@@ -4,16 +4,16 @@ HTTP wrapper around NatCap's InVEST product (https://pypi.python.org/pypi/natcap
 
 Specifically we've focused on the pollination model at this stage, because that's what we need.
 
-As an idea of how it performs, we'll run the Docker container on my laptop with a 2nd gen Core i7 with plenty of RAM and an SSD. We're using the out-of-the-box demo farm vector and the default farm padding of 3km which gives us a raster size of approximately 13x12 km. We see the following figures:
+Getting an idea of the performance and required resources is useful. We'll run the Docker container on my laptop with a 2nd gen Core i7, plenty of RAM and using a secondary SSD. We're using the out-of-the-box demo farm vector and the default farm padding of 3km which gives us a raster size of approximately 13x12 km. We see the following figures:
 
-years simulated | run times for 3 runs (seconds)
---- | ---
-1 | 2.5-2.6
-3 | 3.5-3.6
-10 | 7.4-8.0
-30 | 20.2-20.7
+years simulated | run times for 3 runs (seconds) | disk used
+--- | --- | ---
+1 | 2.5-2.6 | 125MB
+3 | 3.5-3.6 | 249MB
+10 | 7.4-8.0 | 683MB
+30 | 20.2-20.7 | 1.9GB
 
-All years are run in parallel with one process per year so on my machine the CPUs are completely used once the number of years equals the number of cores. Even though the NatCap model writes a lot of intermediate `tif` files as part of the processing, a faster disk (like ramdisk) doesn't improve performance because we're CPU-bound.
+All years are run in parallel with one process per year so on my machine the CPUs are completely used once the number of years equals the number of cores. Even though the NatCap model writes a lot of intermediate `tif` files as part of the processing, a faster disk (like ramdisk) doesn't improve performance because we're CPU-bound. Also note that all the files are removed after a run but you need the disk space available.
 
 ## Running it
 
@@ -31,6 +31,7 @@ You can configure aspects of the model execution by providing [env parameters](h
 | key |value type | default value | description |
 | --- |---------- | ------------- | ----------- |
 |`FARM_PADDING_METRES`|integer|3000| padding, in metres, used when cropping the raster around the farm vector. Smaller values mean faster runs but if you go too small, it'll negatively affect results as there's not enough raster around the farm to calculate wild pollination values. |
+|`PURGE_WORKSPACE`|0 or 1|1 (True)|controls if the temporary workspace on disk is completely purged after each run. Each request is stateless/self-contained so the only reason to keep the workspace is for debugging reasons.|
 
 Then you can use it like this:
 ```bash
@@ -63,7 +64,3 @@ There are 3 ways to run this project:
  1. use `tests/stub_runner.py`
 
 The first two methods run a "real" system that will actually call natcap's code. The third method runs flask with a stub natcap implementation behind it so you can quickly iterate on changes to the HTTP related code without running the slow backend code or building a docker image (also slow).
-
-## TODO
-
- 1. add something to clean up old workspace files

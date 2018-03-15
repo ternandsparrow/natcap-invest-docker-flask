@@ -118,6 +118,16 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 422)
 
 
+    def test_pollination09 (self):
+        """ Do we get the expected 4xx response when we supply a 'year' param that's too large """
+        data = u'{ }'
+        result = self.app().post('/pollination?years=300', data=data,
+                content_type='application/json', headers={'accept': 'application/json'})
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertEqual(loads(result.data), {'message' : 'years param cannot be any larger than 30'})
+
+
     def test_tester01(self):
         """ can we get the tester UI? """
         result = self.app().get('/tester')

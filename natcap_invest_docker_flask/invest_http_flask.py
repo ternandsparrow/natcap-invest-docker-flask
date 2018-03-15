@@ -16,6 +16,7 @@ logger = logging.getLogger('natcap_wrapper')
 logger.setLevel(logging.DEBUG)
 
 DEFAULT_YEARS_TO_SIMULATE = 3
+MAX_YEARS_TO_SIMULATE = 30
 
 def log_geojson(data, type_of_vector):
     data_str = dumps(data)
@@ -65,11 +66,14 @@ def make_app(model_runner):
         """ executes the InVEST pollination model and returns the results """
         if not request.is_json:
             abort(415)
+        years_to_simulate = request.args.get('years', default=DEFAULT_YEARS_TO_SIMULATE, type=int)
+        if years_to_simulate > MAX_YEARS_TO_SIMULATE:
+            response_body = {'message':'years param cannot be any larger than %d' % MAX_YEARS_TO_SIMULATE}
+            return (jsonify(response_body), 400, {'Content-type': 'application/json'})
         post_body = request.get_json()
         validation_result = is_request_valid(post_body)
         if validation_result['failed']:
             return validation_result['response']
-        years_to_simulate = request.args.get('years', default=DEFAULT_YEARS_TO_SIMULATE, type=int)
         geojson_farm_vector = post_body['farm']
         # TODO validate farm vector is within extent of landcover raster
         log_geojson(geojson_farm_vector, 'farm')
