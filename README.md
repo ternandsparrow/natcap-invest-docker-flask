@@ -64,3 +64,8 @@ There are 3 ways to run this project:
  1. use `tests/stub_runner.py`
 
 The first two methods run a "real" system that will actually call natcap's code. The third method runs flask with a stub natcap implementation behind it so you can quickly iterate on changes to the HTTP related code without running the slow backend code or building a docker image (also slow).
+
+## TODO
+ - add 'crop type' selector logic to pick the correct guild table based on 'crop_type' field in farm vector, validate value too
+ - add validation for only one crop, can have multiple polys though
+ - change demo to only have one crop type

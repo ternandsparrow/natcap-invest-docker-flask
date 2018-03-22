@@ -34,6 +34,8 @@ farm_lucode = 2000
 farm_layer_and_file_name = u'farms'
 reproj_reveg_filename = u'reprojected_reveg_geojson.json'
 
+FAILURE_FLAG = 'BANG!!!'
+
 
 def workspace_path(suffix):
     return os.path.join(workspace_parent_dir_path, str(suffix))
@@ -50,15 +52,32 @@ def generate_unique_token():
 def get_biophysical_table_row_for_year(year):
     # TODO need to work out the logic for this with scientists
     v = 0.1 * year
-    return [[reveg_lucode, v, v, v, v]]
+    nesting_cavity = v
+    nesting_stem = v
+    nesting_ground = v
+    floral_resources_spring = v
+    floral_resources_summer = v
+    floral_resources_autumn = v
+    floral_resources_winter = v
+    return [[
+        reveg_lucode,
+        nesting_cavity,
+        nesting_stem,
+        nesting_ground,
+        floral_resources_spring,
+        floral_resources_summer,
+        floral_resources_autumn,
+        floral_resources_winter
+    ]]
 
 
 def run_natcap_pollination(farm_vector_path, landcover_biophysical_table_path,
         landcover_raster_path, workspace_dir_path):
     """ executes the pollination model and gathers the results """
+    crop_type = 'apples' # TODO make dynamic parameter
     args = {
         u'farm_vector_path': farm_vector_path,
-        u'guild_table_path': os.path.join(data_dir_path, u'guild_table.csv'),
+        u'guild_table_path': os.path.join(data_dir_path, u'guild_table_{}.csv'.format(crop_type)),
         u'landcover_biophysical_table_path': landcover_biophysical_table_path,
         u'landcover_raster_path': landcover_raster_path,
         u'results_suffix': u'',
@@ -77,33 +96,45 @@ def append_records(record_collector, new_records, year_number):
 
 
 def run_year0(farm_vector_path, landcover_raster_path, workspace_dir, output_queue):
-    logger.debug('processing year 0')
-    year0_workspace_dir_path = os.path.join(workspace_dir, 'year0')
-    os.mkdir(year0_workspace_dir_path)
-    landcover_bp_table_path = os.path.join(data_dir_path, u'landcover_biophysical_table.csv')
-    records = run_natcap_pollination(farm_vector_path, landcover_bp_table_path,
-        landcover_raster_path, year0_workspace_dir_path)
-    output_queue.put((0, records))
+    try:
+        logger.debug('processing year 0')
+        year0_workspace_dir_path = os.path.join(workspace_dir, 'year0')
+        os.mkdir(year0_workspace_dir_path)
+        landcover_bp_table_path = os.path.join(data_dir_path, u'landcover_biophysical_table.csv')
+        records = run_natcap_pollination(farm_vector_path, landcover_bp_table_path,
+            landcover_raster_path, year0_workspace_dir_path)
+        output_queue.put((0, records))
+    except Exception as e:
+        logger.error('Failed while processing year 0, with message: "%s"' % (e.message))
+        output_queue.put(FAILURE_FLAG)
 
 
 def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir, year_number, reveg_vector, output_queue):
-    logger.debug('processing year %s' % str(year_number))
-    year_workspace_dir_path = os.path.join(workspace_dir, 'year' + str(year_number))
-    os.mkdir(year_workspace_dir_path)
-    base_landcover_bp_table_path = os.path.join(data_dir_path, u'landcover_biophysical_table.csv')
-    bp_table = np.loadtxt(base_landcover_bp_table_path, skiprows=1, delimiter=',')
-    new_row = get_biophysical_table_row_for_year(year_number)
-    new_bp_table = np.concatenate((bp_table, new_row), axis=0)
-    landcover_bp_table_path = os.path.join(year_workspace_dir_path, 'landcover_biophysical_table.csv')
-    with open(base_landcover_bp_table_path) as f:
-        bp_table_header = f.readline()
-    with open(landcover_bp_table_path, 'w') as f:
-        f.write(bp_table_header)
-        np.savetxt(f, new_bp_table, fmt='%d,%.6f,%.6f,%.6f,%.6f')
-    new_landcover_raster_path = burn_reveg_on_raster(landcover_raster_path, reveg_vector, year_workspace_dir_path)
-    records = run_natcap_pollination(farm_vector_path, landcover_bp_table_path,
-        new_landcover_raster_path, year_workspace_dir_path)
-    output_queue.put((year_number, records))
+    try:
+        logger.debug('processing year %s' % str(year_number))
+        year_workspace_dir_path = os.path.join(workspace_dir, 'year' + str(year_number))
+        os.mkdir(year_workspace_dir_path)
+        base_landcover_bp_table_path = os.path.join(data_dir_path, u'landcover_biophysical_table.csv')
+        bp_table = np.loadtxt(base_landcover_bp_table_path, skiprows=1, delimiter=',')
+        bp_table_cols_count = bp_table[0].size
+        new_row = get_biophysical_table_row_for_year(year_number)
+        new_bp_table = np.concatenate((bp_table, new_row), axis=0)
+        landcover_bp_table_path = os.path.join(year_workspace_dir_path, 'landcover_biophysical_table.csv')
+        with open(base_landcover_bp_table_path) as f:
+            bp_table_header = f.readline()
+        with open(landcover_bp_table_path, 'w') as f:
+            f.write(bp_table_header)
+            format_template = '%d'
+            for i in range(1, bp_table_cols_count):
+                format_template += ',%.6f'
+            np.savetxt(f, new_bp_table, fmt=format_template)
+        new_landcover_raster_path = burn_reveg_on_raster(landcover_raster_path, reveg_vector, year_workspace_dir_path)
+        records = run_natcap_pollination(farm_vector_path, landcover_bp_table_path,
+            new_landcover_raster_path, year_workspace_dir_path)
+        output_queue.put((year_number, records))
+    except Exception as e:
+        logger.error('Failed while processing year %d, with message: "%s"' % (year_number, e.message))
+        output_queue.put(FAILURE_FLAG)
 
 
 def burn_reveg_on_raster(year0_raster_path, reveg_vector, year_workspace_dir_path):
@@ -241,11 +272,18 @@ class NatcapModelRunner(object):
             p.start()
         for p in processes:
             p.join()
-        queue_results = [output.get() for p in processes]
+        queue_results = []
+        for p in processes:
+            process_result = output.get()
+            if process_result == FAILURE_FLAG:
+                raise RuntimeError('Failed while executing the model')
+            queue_results.append(process_result)
         queue_results.sort()
         records = []
         for curr in queue_results:
-            append_records(records, curr[1], curr[0])
+            year_num = curr[0]
+            year_records = curr[1]
+            append_records(records, year_records, year_num)
         elapsed_ms = now_in_ms() - start_ms
         result = {
             'images': generate_images(workspace_dir, landcover_raster_path, farm_vector_path),
