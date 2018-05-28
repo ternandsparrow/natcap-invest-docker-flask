@@ -13,7 +13,7 @@ years simulated | run times for 3 runs (seconds) | disk used
 10 | 7.4-8.0 | 683MB
 30 | 20.2-20.7 | 1.9GB
 
-All years are run in parallel with one process per year so on my machine the CPUs are completely used once the number of years equals the number of cores. Even though the NatCap model writes a lot of intermediate `tif` files as part of the processing, a faster disk (like ramdisk) doesn't improve performance because we're CPU-bound. Also note that all the files are removed after a run but you need the disk space available.
+All years are run in parallel with one process per year so on my machine the CPUs are completely used once the number of years equals the number of cores. Even though the NatCap model writes a lot of intermediate `tif` files as part of the processing, a faster disk (like ramdisk) doesn't improve performance because we're CPU-bound. Also note that all the files produced from InVEST are removed after a run, however you *need* the disk space available to perform the run.
 
 ## Running it
 
