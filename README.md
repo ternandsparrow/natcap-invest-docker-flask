@@ -56,6 +56,9 @@ cd natcap-invest-docker-flask/
 ./docker-build.sh
 ```
 
+## Affect of farm vector inputs on the outputs
+There are quite a few parameters in the attribute table of the farm vector that you supply, as a user. To get a feel for how they affect the output, have a look at [spectrum/value_spectrum_0.33step.csv](./spectrum/value_spectrum_0.33step.csv). If you want to produce your own spectrum file, see the `spectrum/value_spectrum.py` program.
+
 ## Faster development iterations
 
 There are 3 ways to run this project:
