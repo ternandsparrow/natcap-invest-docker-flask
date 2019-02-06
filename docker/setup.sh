@@ -2,7 +2,6 @@
 set -e
 cd `dirname "$0"`
 apt-get update
-# apt-get dist-upgrade # TODO might improve security
 
 data_dir=/data/pollination
 
@@ -40,6 +39,7 @@ get_raster &
 
 apt-get --assume-yes install \
   gdal-bin \
+  python-pip \
   python-setuptools \
   python-dev \
   gcc \
@@ -51,6 +51,7 @@ wait
 mv *.csv $data_dir
 rm -r /workspace/pollination/
 apt-get --assume-yes purge \
+  python-pip \
   python-setuptools \
   python-dev \
   gcc \
