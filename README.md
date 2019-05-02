@@ -24,7 +24,7 @@ disk space available to perform the run.
 
 ## Version numbers
 We tag the Git and DockerHub repos with a version scheme: `{our version}_{InVEST version}`, for example
-`1.0.0_3.4.2`.
+`1.1.0_3.6.0`.
 
 ## Running it
 
@@ -36,7 +36,7 @@ docker run \
   --rm \
   -it \
   -p 5000:5000 \
-  ternandsparrow/natcap-invest-docker-flask:1.0.0_3.4.2 # check DockerHub for the latest tag
+  ternandsparrow/natcap-invest-docker-flask:1.1.0_3.6.0 # check DockerHub for the latest tag
 ```
 
 You can configure aspects of the model execution by providing [env parameters](https://docs.docker.com/engine/reference/run/#env-environment-variables) to the `docker run` command.

@@ -12,7 +12,7 @@ function get_raster {
   raster_archive=$our_dir/raster.zip
   wget \
     -O $raster_archive \
-    'https://github.com/tomsaleeba/landuse-raster-south-australia/releases/download/20180307-33m/landuse_raster_south_australia_33m_20180307.zip'
+    'https://github.com/ternandsparrow/landuse-raster-south-australia/releases/download/20180307-33m/landuse_raster_south_australia_33m_20180307.zip'
   unzip $raster_archive
   tif_count=`bash -c 'ls -1 *.tif | wc -l'`
   if [ "$tif_count" != "1" ]; then
