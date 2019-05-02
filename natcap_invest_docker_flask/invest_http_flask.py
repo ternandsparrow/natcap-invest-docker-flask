@@ -21,7 +21,7 @@ MAX_YEARS_TO_SIMULATE = 30
 def log_geojson(data, type_of_vector):
     data_str = dumps(data)
     if len(data_str) > 30:
-        msg = data_str[:30] + '...' 
+        msg = data_str[:30] + '...'
     else:
         msg = data_str
     logger.debug('supplied %s GeoJSON=%s' % (type_of_vector, msg))

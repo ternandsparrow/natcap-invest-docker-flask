@@ -32,12 +32,10 @@ gdaldem \
   $destPng \
   -of PNG
 set +e
-which optipng 2>&1 > /dev/null
-OPTI_RC=$?
-set -e
-if [ $OPTI_RC == 0 ]; then
+command -v optipng > /dev/null 2>&1 && {
   optipng -quiet $destPng
-fi
+}
+set -e
 # don't delete intermediate .tif, we use the farm-only one to add the reveg
 rm -f *.aux.xml
 echo "[INFO] done, wrote result to $destPng"

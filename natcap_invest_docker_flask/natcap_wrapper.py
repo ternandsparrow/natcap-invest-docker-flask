@@ -18,6 +18,8 @@ from flask.json import dumps
 from .invest_http_flask import SomethingFailedException
 from .helpers import get_records, extract_min_max
 
+KNOWN_LAYER_NAME = 'reveg_geojson' # ogr2ogr will use the filename as the layer name
+
 logger = logging.getLogger('natcap_wrapper')
 pygeo_logger = logging.getLogger('pygeoprocessing.geoprocessing')
 pygeo_logger.setLevel(logging.WARN)
@@ -32,7 +34,7 @@ workspace_parent_dir_path = u'/workspace/'
 reveg_lucode = 1337
 farm_lucode = 2000
 farm_layer_and_file_name = u'farms'
-reproj_reveg_filename = u'reprojected_reveg_geojson.json'
+reproj_reveg_filename = u'reprojected_' + KNOWN_LAYER_NAME + '.json'
 
 FAILURE_FLAG = 'BANG!!!'
 
@@ -145,7 +147,7 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector, year_workspace_dir_pat
         data = f.read()
     with open(result_path, 'w') as f:
         f.write(data)
-    reveg_vector_path = os.path.join(year_workspace_dir_path, 'reveg_geojson.json')
+    reveg_vector_path = os.path.join(year_workspace_dir_path, KNOWN_LAYER_NAME + '.json')
     with open(reveg_vector_path, 'w') as f:
         f.write(dumps(reveg_vector))
     reprojected_reveg_vector_path = reproject_geojson_to_epsg3107(year_workspace_dir_path, reveg_vector_path)
@@ -153,7 +155,7 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector, year_workspace_dir_pat
     subprocess.check_call([
         '/usr/bin/gdal_rasterize',
         '-burn', str(reveg_lucode),
-        '-l', 'OGRGeoJSON',
+        '-l', KNOWN_LAYER_NAME,
         reprojected_reveg_vector_path,
         result_path], stdout=subprocess.DEVNULL)
     return result_path
@@ -193,7 +195,7 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
         year0_farm_on_raster_path.replace('.png', '.tif'),
         reveg_and_farm_on_raster_path,
         reveg_vector_path,
-        'OGRGeoJSON',
+        KNOWN_LAYER_NAME,
         str(reveg_lucode)], stdout=subprocess.DEVNULL)
     with open(reveg_and_farm_on_raster_path, 'rb') as f2:
         result['reveg'] = base64.b64encode(f2.read())
@@ -293,4 +295,4 @@ class NatcapModelRunner(object):
             shutil.rmtree(workspace_dir)
         logger.debug('execution time %dms' % elapsed_ms)
         return result
-    
+
