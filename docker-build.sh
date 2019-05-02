@@ -10,6 +10,6 @@ if [ "$rc" != "0" ]; then
 fi
 nose2
 docker build \
- -t ternandsparrow/natcap-invest-docker-flask:$version_3.6.0 \
+ -t ternandsparrow/natcap-invest-docker-flask:${version}_3.6.0 \
  -t ternandsparrow/natcap-invest-docker-flask:latest \
  .
