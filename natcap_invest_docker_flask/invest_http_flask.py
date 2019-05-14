@@ -1,7 +1,7 @@
 import os
 import logging
 
-from flask import Flask, jsonify, send_file, render_template, request, abort
+from flask import Flask, jsonify, send_file, render_template, request
 from flask.json import dumps
 from flask_accept import accept
 from flask_cors import CORS
@@ -15,8 +15,8 @@ logging.basicConfig()
 logger = logging.getLogger('natcap_wrapper')
 logger.setLevel(logging.DEBUG)
 
-DEFAULT_YEARS_TO_SIMULATE = 3
 MAX_YEARS_TO_SIMULATE = 30
+crop_type_key = 'crop_type'
 
 def log_geojson(data, type_of_vector):
     data_str = dumps(data)
@@ -34,7 +34,23 @@ def read_example_json(file_path):
         return result
 
 
-# FIXME can we create a class and pass this to the constructor?
+class InvalidUsage(Exception):
+    """ from http://flask.pocoo.org/docs/1.0/patterns/apierrors/ """
+    status_code = 400
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
+
+
 def make_app(model_runner):
     app = Flask(__name__)
     CORS(app)
@@ -48,6 +64,13 @@ def make_app(model_runner):
     app.jinja_options = jinja_options
     app_root = os.path.dirname(os.path.abspath(__file__))
     app_static = os.path.join(app_root, 'static')
+
+
+    @app.errorhandler(InvalidUsage)
+    def handle_invalid_usage(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        return response
 
 
     @app.route('/')
@@ -65,58 +88,54 @@ def make_app(model_runner):
     def pollination():
         """ executes the InVEST pollination model and returns the results """
         if not request.is_json:
-            abort(415)
-        years_to_simulate = request.args.get('years', default=DEFAULT_YEARS_TO_SIMULATE, type=int)
-        if years_to_simulate > MAX_YEARS_TO_SIMULATE:
-            response_body = {'message':'years param cannot be any larger than %d' % MAX_YEARS_TO_SIMULATE}
-            return (jsonify(response_body), 400, {'Content-type': 'application/json'})
+            raise InvalidUsage("POST body doesn't look like JSON", 415)
         post_body = request.get_json()
-        validation_result = is_request_valid(post_body)
-        if validation_result['failed']:
-            return validation_result['response']
+        validate_request(post_body)
+        years_to_simulate = post_body['years']
+        if years_to_simulate > MAX_YEARS_TO_SIMULATE:
+            raise InvalidUsage('years param cannot be any larger than %d' % MAX_YEARS_TO_SIMULATE)
         geojson_farm_vector = post_body['farm']
         # TODO validate farm vector is within extent of landcover raster
         log_geojson(geojson_farm_vector, 'farm')
         geojson_reveg_vector = post_body['reveg']
         # TODO validate the reveg vector is in an appropriate location compared with the farm. Probably within a few kms is good enough
         log_geojson(geojson_reveg_vector, 'reveg')
-        result = model_runner.execute_model(geojson_farm_vector, years_to_simulate, geojson_reveg_vector)
+        crop_type = post_body[crop_type_key]
+        result = model_runner.execute_model(geojson_farm_vector, years_to_simulate,
+                geojson_reveg_vector, crop_type)
         return jsonify(result)
 
 
-    def is_request_valid(request_dict):
+    def validate_request(request_dict):
         try:
-            request_dict['farm']
-            request_dict['reveg']
+            required_keys = ['years', crop_type_key, 'farm', 'reveg']
+            for curr in required_keys:
+                request_dict[curr]
         except KeyError:
-            return {'failed': True, 'response': abort(422)}
-        farm_validation_result = is_valid_geojson(request_dict['farm'])
-        if farm_validation_result['failed']: return farm_validation_result['response']
-        reveg_validation_result = is_valid_geojson(request_dict['reveg'])
-        if reveg_validation_result['failed']: return reveg_validation_result['response']
-        schema_validation_result = do_json_schema_validation()
-        if schema_validation_result['failed']: return schema_validation_result['response']
-        return {'failed': False}
+            raise InvalidUsage('POST body must have the keys: ' + str(required_keys))
+        valid_crop_types = ['apple', 'canola', 'lucerne']
+        if not request_dict[crop_type_key] in valid_crop_types:
+            raise InvalidUsage('crop_type must be one of: ' + str(valid_crop_types))
+        assert_geojson(request_dict['farm'])
+        assert_geojson(request_dict['reveg'])
+        assert_json_schema()
 
 
-    def do_json_schema_validation():
+    def assert_json_schema():
         class JsonInputs(Inputs):
             json = [JsonSchema(schema=pollination_schema)]
         inputs = JsonInputs(request)
-        if not inputs.validate():
-            logger.debug('validation errors=%s' % inputs.errors)
-            # TODO send inputs.errors in response
-            return {'failed': True, 'response': abort(422)}
-        return {'failed': False}
+        if inputs.validate():
+            return
+        logger.debug('validation errors=%s' % inputs.errors)
+        raise InvalidUsage('JSON schema validation failed: ' + str(inputs.errors))
 
 
-    def is_valid_geojson(geojson_dict):
-        geojson_obj = geojson.loads(dumps(geojson_dict))
-        is_geojson_obj_not_valid = not hasattr(geojson_obj, 'is_valid') or not geojson_obj.is_valid
-        if is_geojson_obj_not_valid:
-            # TODO send geojson_obj.errors() in response
-            return {'failed': True, 'response': abort(422)}
-        return {'failed': False}
+    def assert_geojson(geojson_dict):
+        try:
+            geojson.loads(dumps(geojson_dict))
+        except ValueError as e:
+            raise InvalidUsage('Not valid geojson: ' + e.message)
 
 
     @app.route('/tester')
@@ -131,9 +150,3 @@ def make_app(model_runner):
 
 
     return app
-
-
-class SomethingFailedException(Exception):
-  def __init__(self, http_resp):
-    super(SomethingFailedException, self).__init__()
-    self.http_resp = http_resp

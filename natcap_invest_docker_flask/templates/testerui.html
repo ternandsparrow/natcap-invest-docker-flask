@@ -101,6 +101,14 @@
                 The CRS is implied when it's not explicitly supplied and that's what we're doing here.
               </div>
               <div class="form-group">
+                <label for="cropType" style="margin-right: 2em;">Crop type</label>
+                <select name="cropType" ng-model="cropType">
+                  <option value="apple">Apples</option>
+                  <option value="canola">Canola</option>
+                  <option value="lucerne">Lucerne</option>
+                </select>
+              </div>
+              <div class="form-group">
                 <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
                 <textarea ng-model="farmVector" id="inputFarmVector" class="mono vector-input"></textarea>
                 <a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedVector(farmVector)}}" target="_blank">send this GeoJSON to geojson.io for editing</a>
@@ -132,17 +140,17 @@
     <div class="row" ng-show="resultTable">
       <div class="col-sm">
         <div class="card">
-          <div class="card-header">Results: Records</div>
+          <div class="card-header">Results: for crop_type={{cropType}} (elapsed time = {{resultExecTime}}ms)</div>
           <div class="card-body">
             <table class="table table-responsive">
               <thead>
                 <tr>
-                  <th ng-repeat="curr in tableHeaders | onlyResults">{{curr}}</th>
+                  <th ng-repeat="curr in tableHeaders | desiredHeaders">{{curr}}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr ng-repeat="curr in resultTable">
-                  <td class="mono" ng-repeat="f in tableHeaders | onlyResults">{{curr[f]}}</td>
+                  <td class="mono" ng-repeat="f in tableHeaders | desiredHeaders">{{curr[f]}}</td>
                 </tr>
               </tbody>
             </table>
@@ -184,19 +192,10 @@
     app.config(function (localStorageServiceProvider) {
       localStorageServiceProvider.setPrefix('nidf')
     })
-    app.filter('onlyResults', function() {
+    app.filter('desiredHeaders', function() {
       return function(x) {
-        // include crop_type so we know what the results are for
-        var accepted = ['year', 'crop_type', 'p_abund', 'pdep_y_w', 'y_tot', 'y_wild']
-        var result = []
-        for (var i = 0; i < x.length; i++) {
-          var curr = x[i]
-          var isCurrAccepted = accepted.indexOf(curr) >= 0
-          if (isCurrAccepted) {
-            result.push(curr)
-          }
-        }
-        return result
+        var accepted = ['year', 'season', 'feat_num', 'p_abund', 'pdep_y_w', 'y_tot', 'y_wild']
+        return accepted
       }
     })
     app.controller('MainController', function ($scope, $http, $anchorScroll, $timeout, localStorageService) {
@@ -207,6 +206,7 @@
       $scope.tableHeaders = []
       $scope.farmVector = '{j{example_farm_vector|safe}j}'
       $scope.revegVector = '{j{example_reveg_vector|safe}j}'
+      $scope.cropType = 'apple'
       $scope.yearsToSimulate = 3
       $scope.executePollinationModel = function () {
         $scope.isExecutingModel = true
@@ -214,13 +214,16 @@
         $scope.resultTable = null
         $scope.resultImages = null
         var postBody = {
-          'farm': JSON.parse($scope.farmVector),
-          'reveg': JSON.parse($scope.revegVector)
+          crop_type: $scope.cropType,
+          years: $scope.yearsToSimulate,
+          farm: JSON.parse($scope.farmVector),
+          reveg: JSON.parse($scope.revegVector)
         }
-        return $http.post(url('/pollination?years=' + $scope.yearsToSimulate), postBody).then(function(resp) {
+        return $http.post(url('/pollination'), postBody).then(function(resp) {
           $scope.isExecutingModel = false
           $scope.resultTable = resp.data.records
           $scope.resultImages = resp.data.images
+          $scope.resultExecTime = resp.data.elapsed_ms
           $scope.tableHeaders = updateTableHeaders()
           $timeout(function () {
             $anchorScroll('executeButton')

@@ -3,20 +3,7 @@
   "features": [
     {
       "type": "Feature",
-      "properties": {
-        "crop_type": "apples",
-        "half_sat": 0.6,
-        "p_managed": 0.9,
-        "season": "spring",
-        "fr_spring": 1,
-        "fr_summer": 0.1,
-        "fr_autumn": 0.1,
-        "fr_winter": 0,
-        "n_cavity": 0.9,
-        "n_stem": 0.3,
-        "n_ground": 0.1,
-        "p_dep": 0.65
-      },
+      "properties": { },
       "geometry": {
         "type": "Polygon",
         "coordinates": [
@@ -115,20 +102,7 @@
     },
     {
       "type": "Feature",
-      "properties": {
-        "crop_type": "canola",
-        "half_sat": 0.1,
-        "p_managed": 0.1,
-        "season": "summer",
-        "fr_spring": 0.8,
-        "fr_summer": 0.3,
-        "fr_autumn": 0.2,
-        "fr_winter": 0,
-        "n_cavity": 0.1,
-        "n_stem": 0.3,
-        "n_ground": 0.7,
-        "p_dep": 0.3
-      },
+      "properties": { },
       "geometry": {
         "type": "Polygon",
         "coordinates": [

@@ -32,10 +32,15 @@ This is a docker image. The contained process runs in the foreground so we'll ru
 can control+c to kill it. We'll also use the `--rm` flag so the container is removed when we exit. Use the
 following command to run:
 ```bash
+# uncomment the follow for a production deploy
+#theEnv=production
+#restartPolicy=unless-stopped
 docker run \
   --rm \
   -it \
   -p 5000:5000 \
+  -e NIDF_ENV=${theEnv:-development} \
+  --restart=${restartPolicy:-no} \
   ternandsparrow/natcap-invest-docker-flask:1.1.0_3.6.0 # check DockerHub for the latest tag
 ```
 
@@ -49,14 +54,15 @@ You can configure aspects of the model execution by providing [env parameters](h
 Then you can use it like this:
 ```bash
 curl localhost:5000/ # get available links, just a healthcheck really
+# change to a dir where we can use the example payloads
 cd natcap-invest-docker-flask/natcap_invest_docker_flask/static/
 # execute the pollination model:
-echo '{"farm":'`cat example-farm-vector.json`',"reveg":'`cat example-reveg-vector.json`'}' \
+echo '{"crop_type":"apple","years":3,"farm":'`cat example-farm-vector.json`',"reveg":'`cat example-reveg-vector.json`'}' \
   | curl \
   -H 'Accept: application/json' \
   -H 'Content-type: application/json' \
   -d @- \
-  'http://localhost:5000/pollination?years=2'
+  'http://localhost:5000/pollination'
 ```
 
 Alternatively, you can go to http://localhost:5000/tester to use a web UI to interact with the service.
@@ -65,8 +71,14 @@ Alternatively, you can go to http://localhost:5000/tester to use a web UI to int
 
 You can build this project with the following command:
 ```bash
-cd natcap-invest-docker-flask/
-./docker-build.sh
+docker build -t ternandsparrow/natcap-invest-docker-flask:dev .
+```
+
+The docker build uses a multi-stage approach. This means subsequent builds will be fast because they'll use the build
+cache. The last stage of the build, which always runs, copys the code over to the container. If you make changes to
+the dependencies, you'll need to bust the cache and rebuild all stages. Do this with:
+```bash
+docker build --no-cache -t ternandsparrow/natcap-invest-docker-flask:dev .
 ```
 
 ## Affect of farm vector inputs on the outputs
@@ -77,16 +89,46 @@ own spectrum file, see the `spectrum/value_spectrum.py` program.
 
 ## Faster development iterations
 
-There are 3 ways to run this project:
+There are 4 ways to run this project:
  1. build the docker image and run it
+ 1. (preferred) use the built docker container but mount your workspace as a volume so it sees the changes *live*
+      ```bash
+      docker run \
+        --rm \
+        -it \
+        -v $(pwd):/app/ \
+        --entrypoint bash \
+        -p 5000:5000 \
+        ternandsparrow/natcap-invest-docker-flask:dev # change tag to the one you built
+      # now, in the docker container
+      $ export NIDF_ENV=development
+      $ ./docker/run.sh
+      ```
  1. have a virtualenv (or not, if you're crazy) with all the dependencies installed and run full implementations directly on your machine
- 1. use `tests/stub_runner.py`
+ 1. use `tests/stub_runner.py` (FIXME need to also install GDAL, natcap, etc which aren't explicit requirements -
+    assumed to come from base Docker image)
 
-The first two methods run a "real" system that will actually call natcap's code. The third method runs flask
+The first three methods run a "real" system that will actually call natcap's code. The fourth method runs flask
 with a stub natcap implementation behind it so you can quickly iterate on changes to the HTTP related code
 without running the slow backend code or building a docker image (also slow).
 
-## TODO
- - add 'crop type' selector logic to pick the correct guild table based on 'crop_type' field in farm vector, validate value too
- - add validation for only one crop, can have multiple polys though
- - change demo to only have one crop type
+## Running unit tests
+The code base is currently only lightly tested and as such doesn't require all the dependencies to be able to run the
+tests. This means you can run tests by:
+
+  1. create a virtualenv
+      ```bash
+      virtualenv -p python2 .venv
+      . .venv/bin/activate
+      ```
+  1. install the dependencies for this project (doesn't include the underlying dependencies like natcap and GDAL)
+      ```bash
+      pip install -r requirements.txt -r requirements-test.txt
+      ```
+  1. run the tests
+      ```bash
+      nose2
+      ```
+
+In the future when we test more of the code, and we need natcap, etc to be present, we'll probably run the tests inside
+a docker container.

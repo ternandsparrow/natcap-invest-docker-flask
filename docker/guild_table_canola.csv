@@ -1,3 +1,0 @@
-SPECIES,nesting_suitability_cavity_index,nesting_suitability_stem_index,nesting_suitability_ground_index,foraging_activity_spring_index,foraging_activity_summer_index,foraging_activity_autumn_index,foraging_activity_winter_index,alpha,relative_abundance
-Apis,1,0,0,1,1,0,0,500,0.7
-Halictines,0,0,1,1,0.5,0,0,300,0.2

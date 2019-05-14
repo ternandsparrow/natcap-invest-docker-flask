@@ -21,6 +21,14 @@ schema = {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": False,
   "properties": {
+    "crop_type": {
+      "$id": "/properties/crop_type",
+      "type": "string"
+    },
+    "years": {
+      "$id": "/properties/years",
+      "type": "number"
+    },
     "farm": {
       "$id": "/properties/farm",
       "type": "object",
@@ -43,60 +51,11 @@ schema = {
                 "$id": "/properties/farm/properties/features/items/properties/type",
                 "type": "string"
               },
-              "properties": {
+              "properties": { # technically GeoJSON requires this field, but we set it all server side
                 "$id": "/properties/farm/properties/features/items/properties/properties",
                 "type": "object",
                 "additionalProperties": False,
-                "properties": {
-                  "crop_type": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/crop_type",
-                    "type": "string"
-                  },
-                  "half_sat": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/half_sat",
-                    "type": "number"
-                  },
-                  "p_managed": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/p_managed",
-                    "type": "number"
-                  },
-                  "season": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/season",
-                    "type": "string"
-                  },
-                  "fr_spring": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/fr_spring",
-                    "type": "number"
-                  },
-                  "fr_summer": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/fr_summer",
-                    "type": "number"
-                  },
-                  "fr_autumn": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/fr_autumn",
-                    "type": "number"
-                  },
-                  "fr_winter": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/fr_winter",
-                    "type": "number"
-                  },
-                  "n_cavity": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/n_cavity",
-                    "type": "number"
-                  },
-                  "n_stem": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/n_stem",
-                    "type": "number"
-                  },
-                  "n_ground": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/n_ground",
-                    "type": "number"
-                  },
-                  "p_dep": {
-                    "$id": "/properties/farm/properties/features/items/properties/properties/properties/p_dep",
-                    "type": "number"
-                  }
-                }
+                "properties": { }
               },
               "geometry": {
                 "$id": "/properties/farm/properties/features/items/properties/geometry",

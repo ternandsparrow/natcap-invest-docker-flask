@@ -1,7 +1,11 @@
-FROM ternandsparrow/natcap-invest-docker:1.1.0_3.6.0
+FROM ternandsparrow/natcap-invest-docker:1.1.0_3.6.0 AS withDeps
 
-ADD docker/ requirements.txt /app/
-ADD natcap_invest_docker_flask/ /app/natcap_invest_docker_flask/
 WORKDIR /app/
-RUN /bin/bash setup.sh
-ENTRYPOINT [ "/bin/bash", "run.sh" ]
+ADD docker/stage1/setup.sh docker/stage1/setup.sh
+ADD requirements.txt .
+RUN /bin/bash docker/stage1/setup.sh
+
+
+FROM withDeps
+ADD . /app/
+ENTRYPOINT [ "/bin/bash", "docker/run.sh" ]

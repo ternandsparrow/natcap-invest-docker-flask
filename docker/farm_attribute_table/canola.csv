@@ -1,0 +1,3 @@
+half_sat,p_managed,season,fr_spring,fr_summer,n_cavity,n_ground,p_dep
+0.1,0,summer,1,0,0,0.2,0.1
+0.1,0.9,spring,1,0,0,0.2,1

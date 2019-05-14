@@ -1,6 +1,0 @@
-SPECIES,nesting_suitability_cavity_index,nesting_suitability_stem_index,nesting_suitability_ground_index,foraging_activity_spring_index,foraging_activity_summer_index,foraging_activity_autumn_index,foraging_activity_winter_index,alpha,relative_abundance
-Apis,1,0,0,1,1,0,0,1000,1
-Amegilla,0,0,1,0.5,1,0.2,0,500,0.2
-Halictines,0,0,1,1,0.5,0,0,300,0.3
-Megachilids,0,1,0.1,0.1,0.9,0,0,300,0.1
-,,,,,,, ,,

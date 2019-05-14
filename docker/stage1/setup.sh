@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-cd `dirname "$0"`
+cd `dirname "$0"`/../..
 apt-get update
 
 data_dir=/data/pollination
@@ -20,36 +20,39 @@ function get_raster {
     exit 1
   fi
   gzip *.tif
-  pushd $data_dir
-  rm -rf *
-  popd
+  rm -rf $data_dir/*
   theArchive=$data_dir/south_australia_landcover.tif.gz
   mv *.tif.gz $theArchive
   if [ ! -f $theArchive ]; then
     echo "[ERROR] expected $theArchive to be present and it wasn't"
     exit 1
   fi
+  rm -rf $our_dir
   popd
 }
 
-apt-get --assume-yes install \
+apt-get --assume-yes --no-install-recommends install \
   unzip \
   wget
+
 get_raster &
 
-apt-get --assume-yes install \
+apt-get --assume-yes --no-install-recommends install \
   gdal-bin \
   python-pip \
   python-setuptools \
   python-dev \
   gcc \
+  gunicorn \
   optipng
 
 pip install -r requirements.txt
+pip freeze > pip.freeze
 wait
 
-mv *.csv $data_dir
+#mv *.csv $data_dir # FIXME change to CSV files in the subdirs
 rm -r /workspace/pollination/
+
 apt-get --assume-yes purge \
   python-pip \
   python-setuptools \
@@ -63,4 +66,3 @@ rm -rf \
  /var/lib/apt/lists/* \
  /tmp/* \
  /var/tmp/*
-rm setup.sh
