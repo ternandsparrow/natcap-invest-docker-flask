@@ -38,7 +38,7 @@ script.
       cd natcap-invest-docker-flask
       cp run-container.sh.example run-container.sh
       # OR, pull direct from GitHub
-      curl https://github.com/ternandsparrow/natcap-invest-docker-flask/raw/master/run-container.sh.example > run-container.sh
+      curl -L https://github.com/ternandsparrow/natcap-invest-docker-flask/raw/master/run-container.sh.example > run-container.sh
       ```
   1. make it executable
       ```bash

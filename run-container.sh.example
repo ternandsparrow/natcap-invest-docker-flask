@@ -13,8 +13,8 @@ hostPort=5000
 dockerTag=1.1.2_3.6.0
 
 # uncomment the following for a production deploy
-theEnv=production
-restartPolicy=unless-stopped
+#theEnv=production
+#restartPolicy=unless-stopped
 
 existingContainerId=`docker ps -q -f name="^${name}$"`
 if [ ! -z "$existingContainerId" ]; then
