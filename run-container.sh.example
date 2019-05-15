@@ -1,7 +1,9 @@
 #!/bin/bash
 # starts/restarts our container
 # You don't need the code locally, you can just deploy this script to a host with docker
-#  and run it.
+#  and run it. Purposely built to be editing so you just run the script and all your
+#  settings are still intact. If we accepted params, you might forget to pass them
+#  on subsequent runs and accidentally run in dev mode instead of prod, etc.
 set euo -pipefail
 
 name=natcap
@@ -11,15 +13,16 @@ hostPort=5000
 dockerTag=1.1.2_3.6.0
 
 # uncomment the following for a production deploy
-#theEnv=production
-#restartPolicy=unless-stopped
+theEnv=production
+restartPolicy=unless-stopped
 
-existingContainerId=`docker ps -f name='^${name}$'`
+existingContainerId=`docker ps -q -f name="^${name}$"`
 if [ ! -z "$existingContainerId" ]; then
   echo "[INFO] killing existing container $existingContainerId"
-  docker rm -f $name
+  docker rm -f $name > /dev/null
 fi
 
+echo "[INFO] starting container"
 docker run \
   --detach \
   --name=$name \
