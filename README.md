@@ -101,18 +101,12 @@ own spectrum file, see the `spectrum/value_spectrum.py` program.
 
 There are 4 ways to run this project:
  1. build the docker image and run it
- 1. (preferred) use the built docker container but mount your workspace as a volume so it sees the changes *live*
+ 1. (preferred) use the built docker container but mount your workspace as a volume so it sees the changes *live* (the
+    `LOCAL_DEV` env var will trigger the volume mounting)
       ```bash
-      docker run \
-        --rm \
-        -it \
-        -v $(pwd):/app/ \
-        --entrypoint bash \
-        -p 5000:5000 \
-        ternandsparrow/natcap-invest-docker-flask:dev # change tag to the one you built
-      # now, in the docker container
-      $ export NIDF_ENV=development
-      $ ./docker/run.sh
+      # edit your run-container.sh file that you created by following the instructions under "Running it"
+      #  so the docker tag matches what you used to build the image
+      LOCAL_DEV=1 ./run-container.sh
       ```
  1. have a virtualenv (or not, if you're crazy) with all the dependencies installed and run full implementations directly on your machine
  1. use `tests/stub_runner.py` (FIXME need to also install GDAL, natcap, etc which aren't explicit requirements -

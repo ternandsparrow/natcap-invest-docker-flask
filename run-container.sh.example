@@ -16,10 +16,14 @@ dockerTag=1.1.2_3.6.0
 #theEnv=production
 #restartPolicy=unless-stopped
 
-existingContainerId=`docker ps -q -f name="^${name}$"`
+existingContainerId=`docker ps -a -q -f name="^${name}$"`
 if [ ! -z "$existingContainerId" ]; then
   echo "[INFO] killing existing container $existingContainerId"
   docker rm -f $name > /dev/null
+fi
+
+if [ ! -z "${LOCAL_DEV:-}" ]; then
+  fragment="-v $(pwd):/app"
 fi
 
 echo "[INFO] starting container"
@@ -29,4 +33,5 @@ docker run \
   -p 5000:$hostPort \
   -e NIDF_ENV=${theEnv:-development} \
   --restart=${restartPolicy:-no} \
+  ${fragment:-} \
   ternandsparrow/natcap-invest-docker-flask:$dockerTag
