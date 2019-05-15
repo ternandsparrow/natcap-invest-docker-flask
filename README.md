@@ -28,23 +28,33 @@ We tag the Git and DockerHub repos with a version scheme: `{our version}_{InVEST
 
 ## Running it
 
-This is a docker image. The contained process runs in the foreground so we'll run it without detatching so we
-can control+c to kill it. We'll also use the `--rm` flag so the container is removed when we exit. Use the
-following command to run:
-```bash
-# uncomment the follow for a production deploy
-#theEnv=production
-#restartPolicy=unless-stopped
-docker run \
-  --rm \
-  -it \
-  -p 5000:5000 \
-  -e NIDF_ENV=${theEnv:-development} \
-  --restart=${restartPolicy:-no} \
-  ternandsparrow/natcap-invest-docker-flask:1.1.1_3.6.0 # check DockerHub for the latest tag
-```
+This is a docker image and it's built on DockerHub, so to run on a host all you need is to grab the runner script from
+this repo (you don't need to whole repo) and a host with docker installed. It will pull the image when you run the
+script.
 
-You can configure aspects of the model execution by providing [env parameters](https://docs.docker.com/engine/reference/run/#env-environment-variables) to the `docker run` command.
+  1. get the runner script
+      ```bash
+      git clone https://github.com/ternandsparrow/natcap-invest-docker-flask
+      cd natcap-invest-docker-flask
+      cp run-container.sh.example run-container.sh
+      # OR, pull direct from GitHub
+      curl https://github.com/ternandsparrow/natcap-invest-docker-flask/raw/master/run-container.sh.example > run-container.sh
+      ```
+  1. make it executable
+      ```bash
+      chmod +x run-container.sh
+      ```
+  1. make any required edits
+      ```bash
+      vim run-container.sh # select an image tag and/or enable production mode
+      ```
+  1. run it
+      ```bash
+      ./run-container.sh
+      ```
+
+You can configure aspects of the model execution by providing [env
+parameters](https://docs.docker.com/engine/reference/run/#env-environment-variables) to the `docker run` command.
 
 | key |value type | default value | description |
 | --- |---------- | ------------- | ----------- |
