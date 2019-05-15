@@ -55,7 +55,6 @@ rm -r /workspace/pollination/
 
 apt-get --assume-yes purge \
   python-pip \
-  python-setuptools \
   python-dev \
   gcc \
   wget \
