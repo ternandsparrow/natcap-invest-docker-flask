@@ -50,7 +50,6 @@ pip install -r requirements.txt
 pip freeze > pip.freeze
 wait
 
-#mv *.csv $data_dir # FIXME change to CSV files in the subdirs
 rm -r /workspace/pollination/
 
 apt-get --assume-yes purge \

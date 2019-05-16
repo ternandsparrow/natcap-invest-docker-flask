@@ -5,7 +5,7 @@ theEnv=${NIDF_ENV:-development}
 echo "[INFO] running for env=$theEnv"
 
 if [ "$theEnv" == "development" ]; then
-  export FLASK_APP=natcap_invest_docker_flask
+  export FLASK_APP=natcap_invest_docker_flask.__main__
   export FLASK_ENV=development
   flask run --host 0.0.0.0 $@
 elif [ "$theEnv" == "production" ]; then
