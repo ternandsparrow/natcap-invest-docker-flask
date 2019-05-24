@@ -105,6 +105,39 @@ def append_records(record_collector, new_records, year_number):
         record_collector.append(curr)
 
 
+def fill_in_and_write(biophys_table, file_path):
+    """
+    Add default entries for all missing LULC codes and write to filesystem
+      biophys_table:  2d numpy array of existing LULC records
+      file_path:      where to write the CSV
+    """
+    existing_lulc_codes = biophys_table[:, 0]
+    extra_codes = []
+    max_lulc_code = 699
+    for curr in range(max_lulc_code):
+        if curr in existing_lulc_codes:
+            continue
+        values = [0 for x in range(1, biophys_col_count)]
+        extra_codes.append([curr] + list(values))
+    completed_table = np.concatenate((biophys_table, extra_codes), axis=0)
+    # TODO perhaps should read this header from the CSV file(s)
+    with open(file_path, 'w') as f:
+        f.write('lucode,')
+        f.write('nesting_cavity_availability_index,')
+        f.write('nesting_ground_availability_index,')
+        f.write('floral_resources_spring_index,')
+        f.write('floral_resources_summer_index\n')
+        format_template = ','.join(['%d' for x in range(biophys_col_count)])
+        np.savetxt(f, completed_table, fmt=format_template)
+
+
+def read_biophys_table_from_file(file_path):
+    return np.genfromtxt(file_path,
+                         skip_header=1,
+                         delimiter=',',
+                         usecols=range(biophys_col_count))
+
+
 def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
               output_queue, crop_type):
     try:
@@ -112,12 +145,16 @@ def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
         year0_workspace_dir_path = os.path.join(workspace_dir, 'year0')
         os.mkdir(year0_workspace_dir_path)
         landcover_bp_table_path = landcover_biophys_table_path(crop_type)
+        bp_table = read_biophys_table_from_file(landcover_bp_table_path)
+        year0_biophys_table_path = os.path.join(
+            year0_workspace_dir_path, 'landcover_biophysical_table.csv')
+        fill_in_and_write(bp_table, year0_biophys_table_path)
         records = run_natcap_pollination(farm_vector_path,
-                                         landcover_bp_table_path,
+                                         year0_biophys_table_path,
                                          landcover_raster_path,
                                          year0_workspace_dir_path, crop_type)
         output_queue.put((0, records))
-    except Exception as e:
+    except Exception:
         logger.exception(
             'Failed while processing year 0')  # stack trace will be included
         output_queue.put(FAILURE_FLAG)
@@ -135,19 +172,11 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
                                  skip_header=1,
                                  delimiter=',',
                                  usecols=range(biophys_col_count))
-        bp_table_cols_count = bp_table[0].size
         reveg_row = get_reveg_biophysical_table_row_for_year(year_number)
         new_bp_table = np.concatenate((bp_table, reveg_row), axis=0)
         curr_year_landcover_bp_table_path = os.path.join(
             year_workspace_dir_path, 'landcover_biophysical_table.csv')
-        with open(base_landcover_bp_table_path, 'r') as f:
-            bp_table_header = f.readline()
-        with open(curr_year_landcover_bp_table_path, 'w') as f:
-            f.write(bp_table_header)
-            format_template = '%d'
-            for i in range(1, bp_table_cols_count):
-                format_template += ',%.6f'
-            np.savetxt(f, new_bp_table, fmt=format_template)
+        fill_in_and_write(new_bp_table, curr_year_landcover_bp_table_path)
         new_landcover_raster_path = burn_reveg_on_raster(
             landcover_raster_path, reveg_vector, year_workspace_dir_path)
         records = run_natcap_pollination(farm_vector_path,
@@ -155,7 +184,7 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
                                          new_landcover_raster_path,
                                          year_workspace_dir_path, crop_type)
         output_queue.put((year_number, records))
-    except Exception as e:
+    except Exception:
         logger.exception('Failed while processing year %d' %
                          year_number)  # stack trace will be included
         output_queue.put(FAILURE_FLAG)
