@@ -326,20 +326,29 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
     attr_table_rows = load_farm_attributes(crop_type)
     baked_geojson_vector = {'type': 'FeatureCollection', 'features': []}
     for curr_attr_row in attr_table_rows:
-        for curr_feature_num, curr_feature in enumerate(
-                geojson_vector_from_user['features'], start=1):
-            curr_feature['properties'] = curr_attr_row
-            curr_feature['properties']['crop_type'] = crop_type
-            curr_feature['properties']['feat_num'] = curr_feature_num
-            baked_geojson_vector['features'].append(
-                copy.deepcopy(curr_feature))
+        # merge all the features into a multipolygon so we get a single result
+        # per season, otherwise we'd have to somehow merge separate results.
+        multipolygon = {
+            'type': 'Feature',
+            'properties': curr_attr_row,
+            'geometry': {
+                'type':
+                'MultiPolygon',
+                'coordinates': [
+                    x['geometry']['coordinates']
+                    for x in geojson_vector_from_user['features']
+                ]
+            }
+        }
+        multipolygon['properties']['crop_type'] = crop_type
+        baked_geojson_vector['features'].append(copy.deepcopy(multipolygon))
     with open(geojson_path, 'w') as f:
         f.write(dumps(baked_geojson_vector))
     subprocess.check_call(
         [
             '/usr/bin/ogr2ogr',
             '-s_srs',
-            'EPSG:4326',  # assuming the incoming geojson has no CRS so WGS84 is implied
+            'EPSG:4326',  # assume input geojson has no CRS, WGS84 is implied
             '-t_srs',
             'EPSG:3107',
             '-f',
