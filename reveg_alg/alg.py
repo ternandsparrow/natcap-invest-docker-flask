@@ -2,7 +2,7 @@
 The algorithm that models the effect that revegetation has on the nesting and
 floral resources over time.
 
-To see a chart of this, look in (and run) the ./plot.py script.
+To see a chart of this curve over time, run the server and GET /reveg-curve.png
 """
 
 

@@ -1,7 +1,9 @@
 import os
+import math
 import logging
+import multiprocessing
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, Response
 from flask.json import dumps
 from flask_accept import accept
 from flask_cors import CORS
@@ -9,7 +11,8 @@ from flask_inputs import Inputs
 from flask_inputs.validators import JsonSchema
 import geojson
 
-from .schema import schema as pollination_schema
+from natcap_invest_docker_flask.schema import schema as pollination_schema
+import reveg_alg.plot
 
 logging.basicConfig()
 logger = logging.getLogger('natcap_wrapper')
@@ -83,6 +86,22 @@ def make_app(model_runner):
             }, {
                 'rel': 'tester-ui',
                 'href': '/tester'
+            }, {
+                'rel': 'estimate',
+                'href': '/estimate-runtime',
+                'params': {
+                    'years': {
+                        'type': 'integer'
+                    }
+                }
+            }, {
+                'rel': 'reveg-curve',
+                'href': '/reveg-curve.png',
+                'params': {
+                    'years': {
+                        'type': 'integer'
+                    }
+                }
             }]
         })
 
@@ -155,5 +174,30 @@ def make_app(model_runner):
                                example_farm_vector=example_farm_vector,
                                example_reveg_vector=example_reveg_vector,
                                url_root=request.url_root)
+
+    @app.route('/estimate-runtime')
+    def estimate_runtime():
+        """ Estimate how long a simulation will take for the given number of
+        years on the current machine (CPU dependent) """
+        cpu_count = multiprocessing.cpu_count()
+        years = request.args.get('years', type=int)
+        if not years:
+            raise InvalidUsage(
+                "The 'years' param is required and must be an integer >= 1")
+        time_per_year = 6  # seconds
+        some_extra_for_goodluck = 2
+        result = (time_per_year *
+                  math.ceil(1.0 * years / cpu_count)) + some_extra_for_goodluck
+        return jsonify({'seconds': result})
+
+    @app.route('/reveg-curve.png')
+    def reveg_curve_png():
+        years = request.args.get('years', default=15, type=int)
+        max_years_limit = 50
+        if not years or years > max_years_limit:
+            raise InvalidUsage("The 'years' param, if supplied, must be " +
+                               "an integer >= 1 && <= %d" % max_years_limit)
+        png_bytes = reveg_alg.plot.generate_chart(max_years=years)
+        return Response(png_bytes.getvalue(), mimetype='image/png')
 
     return app

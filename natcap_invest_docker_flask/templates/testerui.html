@@ -69,6 +69,10 @@
             <br /><br />
             To use the tool, adjust values as needed in the next section. Then press the 'Execute' button at the bottom
             of the page to run the model. Results will the appear below the button.
+            <br /><br />
+            <div class="text-center">
+              <a class="btn btn-link" href="/reveg-curve.png" target="_blank">View the reveg curve as a chart</a>
+            </div>
           </div>
         </div>
       </div>
@@ -86,7 +90,7 @@
               </div>
               <div class="form-group">
                 <label for="inputYears" style="margin-right: 2em;">Years to simulate</label>
-                <input type="number" ng-model="yearsToSimulate" class="form-control nidf-input" id="inputYears">
+                <input type="number" ng-model="yearsToSimulate" ng-change="onYearsChange()" class="form-control nidf-input" id="inputYears">
                 <small id="inputYearsHelp" class="form-text text-muted">How many years into the future should we run the simulation?</small>
               </div>
               <div class="alert alert-info">
@@ -126,7 +130,8 @@
               </button>
             </p>
             <div class="text-center">
-              <small class="text-muted">Estimated run time: {{4 + yearsToSimulate}} seconds</small>
+              <small class="text-muted">Estimated run time:
+                {{runtimeEstimate}} seconds</small>
             </div>
           </div>
         </div>
@@ -154,9 +159,7 @@
                 </tr>
               </tbody>
             </table>
-            <p>See <a 
-              href="http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results"
-              target="_blank">the official docs</a> 
+            <p>See <a href="http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results" target="_blank">the official docs</a>
               for how to interpret these results.</p>
           </div>
         </div>
@@ -189,7 +192,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.7.1/angular-local-storage.min.js"></script>
   <script type="text/javascript">
     var app = angular.module('nidf', ['angular-loading-bar', 'LocalStorageModule'])
-    app.config(function (localStorageServiceProvider) {
+    app.config(function(localStorageServiceProvider) {
       localStorageServiceProvider.setPrefix('nidf')
     })
     app.filter('desiredHeaders', function() {
@@ -198,7 +201,7 @@
         return accepted
       }
     })
-    app.controller('MainController', function ($scope, $http, $anchorScroll, $timeout, localStorageService) {
+    app.controller('MainController', function($scope, $http, $anchorScroll, $timeout, localStorageService) {
       var BASE_URL_KEY = 'base_url'
       $scope.baseUrl = getBaseUrlFromStorage()
       $scope.isExecutingModel = false
@@ -208,7 +211,8 @@
       $scope.revegVector = '{j{example_reveg_vector|safe}j}'
       $scope.cropType = 'apple'
       $scope.yearsToSimulate = 3
-      $scope.executePollinationModel = function () {
+      $scope.runtimeEstimate = 'about 10'
+      $scope.executePollinationModel = function() {
         $scope.isExecutingModel = true
         $scope.isExecuteFailed = false
         $scope.resultTable = null
@@ -225,27 +229,27 @@
           $scope.resultImages = resp.data.images
           $scope.resultExecTime = resp.data.elapsed_ms
           $scope.tableHeaders = updateTableHeaders()
-          $timeout(function () {
+          $timeout(function() {
             $anchorScroll('executeButton')
           }, 50)
         }, function(resp) {
           $scope.isExecutingModel = false
           console.error('Failed to make HTTP call')
           $scope.isExecuteFailed = true
-          $timeout(function () {
+          $timeout(function() {
             $anchorScroll('failMessage')
           }, 50)
         })
       }
 
-      $scope.updateBaseUrl = function () {
+      $scope.updateBaseUrl = function() {
         if (!localStorageService.isSupported) {
           return
         }
         localStorageService.set(BASE_URL_KEY, $scope.baseUrl)
       }
 
-      $scope.getEncodedVector = function (vectorData) {
+      $scope.getEncodedVector = function(vectorData) {
         if (!vectorData) {
           return ''
         }
@@ -253,7 +257,7 @@
         return encodeURIComponent(JSON.stringify(parsed))
       }
 
-      function getBaseUrlFromStorage () {
+      function getBaseUrlFromStorage() {
         var defaultBaseUrl = '{j{ url_root }j}' // this param comes from Flask+Jinja2
         if (!localStorageService.isSupported) {
           return defaultBaseUrl
@@ -265,12 +269,12 @@
         return defaultBaseUrl
       }
 
-      function updateTableHeaders () {
-        if (! $scope.resultTable) {
+      function updateTableHeaders() {
+        if (!$scope.resultTable) {
           return []
         }
         var first = $scope.resultTable[0]
-        return Object.keys(first).reduce(function (accum, curr) {
+        return Object.keys(first).reduce(function(accum, curr) {
           if (curr.startsWith('$')) {
             return accum
           }
@@ -279,11 +283,20 @@
         }, [])
       }
 
+      $scope.onYearsChange = function() {
+        return $http.get(url('/estimate-runtime?years=' +
+          $scope.yearsToSimulate)).then(function(resp) {
+          $scope.runtimeEstimate = resp.data.seconds
+        })
+      }
+
       $scope.url = url
+
       function url(suffix) {
         return $scope.baseUrl.replace(/\/$/, '') + suffix
       }
     })
   </script>
 </body>
+
 </html>

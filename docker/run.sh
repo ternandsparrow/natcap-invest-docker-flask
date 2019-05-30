@@ -12,6 +12,7 @@ elif [ "$theEnv" == "production" ]; then
   cpuCount=`cat /proc/cpuinfo | grep processor | wc -l`
   maxYears=30
   expectedJobTime=10 # actually about 7 seconds, but add some padding
+  # FIXME timeout doesn't account for load from multiple users
   timeout=`expr $maxYears \* $expectedJobTime / $cpuCount`
   echo "[INFO] setting gunicorn worker timeout to $timeout seconds"
   gunicorn \
