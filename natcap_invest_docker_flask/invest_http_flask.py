@@ -21,6 +21,9 @@ logger.setLevel(logging.DEBUG)
 MAX_YEARS_TO_SIMULATE = 30
 crop_type_key = 'crop_type'
 
+app_root = os.path.dirname(os.path.abspath(__file__))
+app_static = os.path.join(app_root, 'static')
+
 
 def log_geojson(data, type_of_vector):
     data_str = dumps(data)
@@ -55,59 +58,152 @@ class InvalidUsage(Exception):
         return rv
 
 
-def make_app(model_runner):
-    app = Flask(__name__)
-    CORS(app)
-    # stop Jinja2/angularjs conflict, thanks
-    # https://stackoverflow.com/a/30362956/1410035
-    jinja_options = app.jinja_options.copy()
+def estimate_runtime():
+    """ Estimate how long a simulation will take for the given number of
+    years on the current machine (CPU dependent) """
+    cpu_count = multiprocessing.cpu_count()
+    years = request.args.get('years', type=int)
+    if not years:
+        raise InvalidUsage(
+            "The 'years' param is required and must be an integer >= 1")
+    time_per_year = 4  # seconds
+    diluted_cpu_effect = 1 + (1.0 * cpu_count / 10)
+    raw_guess = time_per_year * math.ceil(1.0 * years / diluted_cpu_effect)
+    result = int(max(raw_guess, 15))
+    return jsonify({'seconds': result})
 
-    jinja_options.update(
-        dict(
-            variable_start_string='{j{',
-            variable_end_string='}j}',
-        ))
-    app.jinja_options = jinja_options
-    app_root = os.path.dirname(os.path.abspath(__file__))
-    app_static = os.path.join(app_root, 'static')
 
-    @app.errorhandler(InvalidUsage)
-    def handle_invalid_usage(error):
-        response = jsonify(error.to_dict())
-        response.status_code = error.status_code
-        return response
+def reveg_curve_png():
+    years = request.args.get('years', default=15, type=int)
+    max_years_limit = 50
+    if not years or years > max_years_limit:
+        raise InvalidUsage("The 'years' param, if supplied, must be " +
+                           "an integer >= 1 && <= %d" % max_years_limit)
+    png_bytes = reveg_alg.plot.generate_chart(max_years=years)
+    return Response(png_bytes.getvalue(), mimetype='image/png')
 
-    @app.route('/')
-    def root():
-        return jsonify({
-            '_links': [{
-                'rel': 'pollination',
-                'href': '/pollination'
-            }, {
-                'rel': 'tester-ui',
-                'href': '/tester'
-            }, {
-                'rel': 'estimate',
-                'href': '/estimate-runtime',
-                'params': {
-                    'years': {
-                        'type': 'integer'
-                    }
+
+def root():
+    return jsonify({
+        '_links': [{
+            'rel': 'pollination',
+            'href': '/pollination'
+        }, {
+            'rel': 'tester-ui',
+            'href': '/tester'
+        }, {
+            'rel': 'estimate',
+            'href': '/estimate-runtime',
+            'params': {
+                'years': {
+                    'type': 'integer'
                 }
-            }, {
-                'rel': 'reveg-curve',
-                'href': '/reveg-curve.png',
-                'params': {
-                    'years': {
-                        'type': 'integer'
-                    }
+            }
+        }, {
+            'rel': 'reveg-curve',
+            'href': '/reveg-curve.png',
+            'params': {
+                'years': {
+                    'type': 'integer'
                 }
-            }]
-        })
+            }
+        }]
+    })
 
-    @app.route('/pollination', methods=['POST'])
+
+def validate_request(request_dict):
+    try:
+        required_keys = ['years', crop_type_key, 'farm', 'reveg']
+        for curr in required_keys:
+            request_dict[curr]
+    except KeyError:
+        raise InvalidUsage('POST body must have the keys: ' +
+                           str(required_keys))
+    valid_crop_types = ['apple', 'canola', 'lucerne']
+    if not request_dict[crop_type_key] in valid_crop_types:
+        raise InvalidUsage('crop_type must be one of: ' +
+                           str(valid_crop_types))
+    assert_geojson(request_dict['farm'])
+    assert_geojson(request_dict['reveg'])
+    assert_json_schema()
+    # FIXME validate socketio_sid
+
+
+def assert_json_schema():
+    class JsonInputs(Inputs):
+        json = [JsonSchema(schema=pollination_schema)]
+
+    inputs = JsonInputs(request)
+    if inputs.validate():
+        return
+    logger.debug('validation errors=%s' % inputs.errors)
+    raise InvalidUsage('JSON schema validation failed: ' + str(inputs.errors))
+
+
+def assert_geojson(geojson_dict):
+    try:
+        geojson.loads(dumps(geojson_dict))
+    except ValueError as e:
+        raise InvalidUsage('Not valid geojson: ' + e.message)
+
+
+def tester():
+    """ returns a UI for interacting with this service """
+    example_farm_vector = read_example_json(
+        os.path.join(app_static, 'example-farm-vector.json'))
+    example_reveg_vector = read_example_json(
+        os.path.join(app_static, 'example-reveg-vector.json'))
+    return render_template('testerui.html',
+                           example_farm_vector=example_farm_vector,
+                           example_reveg_vector=example_reveg_vector,
+                           url_root=request.url_root)
+
+
+class AppBuilder(object):
+    def __init__(self, model_runner):
+        self.model_runner = model_runner
+
+    def set_socketio(self, socketio):
+        self.socketio = socketio
+
+    def build(self):
+        app = Flask(__name__)
+        self.app = app
+        CORS(app)
+        # stop Jinja2/angularjs conflict, thanks
+        # https://stackoverflow.com/a/30362956/1410035
+        jinja_options = app.jinja_options.copy()
+
+        jinja_options.update(
+            dict(
+                variable_start_string='{j{',
+                variable_end_string='}j}',
+            ))
+        app.jinja_options = jinja_options
+        self._bind_routes()
+
+        @app.errorhandler(InvalidUsage)
+        def handle_invalid_usage(error):
+            response = jsonify(error.to_dict())
+            response.status_code = error.status_code
+            return response
+
+        return app
+
+    def _bind_routes(self):
+        self.app.add_url_rule('/', 'root', root)
+        self.app.add_url_rule('/pollination',
+                              'pollination',
+                              self.pollination,
+                              methods=['POST'])
+        self.app.add_url_rule('/tester', 'tester', tester)
+        self.app.add_url_rule('/estimate-runtime', 'estimate_runtime',
+                              estimate_runtime)
+        self.app.add_url_rule('/reveg-curve.png', 'reveg_curve_png',
+                              reveg_curve_png)
+
     @accept('application/json')
-    def pollination():
+    def pollination(self):
         """ executes the InVEST pollination model and returns the results """
         if not request.is_json:
             raise InvalidUsage("POST body doesn't look like JSON", 415)
@@ -125,79 +221,19 @@ def make_app(model_runner):
         # with the farm. Probably within a few kms is good enough
         log_geojson(geojson_reveg_vector, 'reveg')
         crop_type = post_body[crop_type_key]
-        result = model_runner.execute_model(geojson_farm_vector,
-                                            years_to_simulate,
-                                            geojson_reveg_vector, crop_type)
+        socketio_sid = post_body['socketio_sid']
+
+        def mark_year_as_done():
+            if not socketio_sid:
+                return
+            self.socketio.emit(
+                'year-complete',
+                {'msg': 'completed another year in the simulation'},
+                room=socketio_sid)
+            self.socketio.sleep(0)  # flush
+
+        result = self.model_runner.execute_model(geojson_farm_vector,
+                                                 years_to_simulate,
+                                                 geojson_reveg_vector,
+                                                 crop_type, mark_year_as_done)
         return jsonify(result)
-
-    def validate_request(request_dict):
-        try:
-            required_keys = ['years', crop_type_key, 'farm', 'reveg']
-            for curr in required_keys:
-                request_dict[curr]
-        except KeyError:
-            raise InvalidUsage('POST body must have the keys: ' +
-                               str(required_keys))
-        valid_crop_types = ['apple', 'canola', 'lucerne']
-        if not request_dict[crop_type_key] in valid_crop_types:
-            raise InvalidUsage('crop_type must be one of: ' +
-                               str(valid_crop_types))
-        assert_geojson(request_dict['farm'])
-        assert_geojson(request_dict['reveg'])
-        assert_json_schema()
-
-    def assert_json_schema():
-        class JsonInputs(Inputs):
-            json = [JsonSchema(schema=pollination_schema)]
-
-        inputs = JsonInputs(request)
-        if inputs.validate():
-            return
-        logger.debug('validation errors=%s' % inputs.errors)
-        raise InvalidUsage('JSON schema validation failed: ' +
-                           str(inputs.errors))
-
-    def assert_geojson(geojson_dict):
-        try:
-            geojson.loads(dumps(geojson_dict))
-        except ValueError as e:
-            raise InvalidUsage('Not valid geojson: ' + e.message)
-
-    @app.route('/tester')
-    def tester():
-        """ returns a UI for interacting with this service """
-        example_farm_vector = read_example_json(
-            os.path.join(app_static, 'example-farm-vector.json'))
-        example_reveg_vector = read_example_json(
-            os.path.join(app_static, 'example-reveg-vector.json'))
-        return render_template('testerui.html',
-                               example_farm_vector=example_farm_vector,
-                               example_reveg_vector=example_reveg_vector,
-                               url_root=request.url_root)
-
-    @app.route('/estimate-runtime')
-    def estimate_runtime():
-        """ Estimate how long a simulation will take for the given number of
-        years on the current machine (CPU dependent) """
-        cpu_count = multiprocessing.cpu_count()
-        years = request.args.get('years', type=int)
-        if not years:
-            raise InvalidUsage(
-                "The 'years' param is required and must be an integer >= 1")
-        time_per_year = 6  # seconds
-        some_extra_for_goodluck = 2
-        result = (time_per_year *
-                  math.ceil(1.0 * years / cpu_count)) + some_extra_for_goodluck
-        return jsonify({'seconds': result})
-
-    @app.route('/reveg-curve.png')
-    def reveg_curve_png():
-        years = request.args.get('years', default=15, type=int)
-        max_years_limit = 50
-        if not years or years > max_years_limit:
-            raise InvalidUsage("The 'years' param, if supplied, must be " +
-                               "an integer >= 1 && <= %d" % max_years_limit)
-        png_bytes = reveg_alg.plot.generate_chart(max_years=years)
-        return Response(png_bytes.getvalue(), mimetype='image/png')
-
-    return app

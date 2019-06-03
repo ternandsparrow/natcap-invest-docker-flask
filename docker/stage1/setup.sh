@@ -43,7 +43,7 @@ apt-get --assume-yes --no-install-recommends install \
   python-setuptools \
   python-dev \
   gcc \
-  gunicorn \
+  netbase \
   optipng
 
 pip install -r requirements.txt

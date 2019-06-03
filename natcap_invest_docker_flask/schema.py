@@ -31,6 +31,10 @@ schema = {
             "$id": "/properties/years",
             "type": "number"
         },
+        "socketio_sid": {
+            "$id": "/properties/socketio_sid",
+            "type": "string"
+        },
         "farm": {
             "$id": "/properties/farm",
             "type": "object",

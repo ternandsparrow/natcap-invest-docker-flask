@@ -126,7 +126,7 @@
             <p class="text-center">
               <button id="executeButton" class="btn btn-primary btn-lg" ng-click="executePollinationModel()" ng-disabled="isExecutingModel">
                 <span ng-hide="isExecutingModel">Execute pollination model</span>
-                <span ng-show="isExecutingModel">Processing...</span>
+                <span ng-show="isExecutingModel">Processing... Completed {{processedYears}} of {{totalYearsToProcess()}} simulations</span>
               </button>
             </p>
             <div class="text-center">
@@ -187,10 +187,15 @@
       </div>
     </div>
   </div>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.7.1/angular-local-storage.min.js"></script>
   <script type="text/javascript">
+    var socket = io()
+    socket.on('connect', function() {
+      console.log('socket.io connected!')
+    })
     var app = angular.module('nidf', ['angular-loading-bar', 'LocalStorageModule'])
     app.config(function(localStorageServiceProvider) {
       localStorageServiceProvider.setPrefix('nidf')
@@ -211,8 +216,18 @@
       $scope.revegVector = '{j{example_reveg_vector|safe}j}'
       $scope.cropType = 'apple'
       $scope.yearsToSimulate = 3
-      $scope.runtimeEstimate = 'about 10'
+      $scope.runtimeEstimate = 'about 15'
+      $scope.processedYears = 0
+      $scope.totalYearsToProcess = function() {
+        var oneForTheCurrentYear = 1
+        return $scope.yearsToSimulate + oneForTheCurrentYear
+      }
+      socket.on('year-complete', function(payload) {
+        console.log('Marking another year as done', payload)
+        $scope.processedYears += 1
+      })
       $scope.executePollinationModel = function() {
+        $scope.processedYears = 0
         $scope.isExecutingModel = true
         $scope.isExecuteFailed = false
         $scope.resultTable = null
@@ -221,7 +236,8 @@
           crop_type: $scope.cropType,
           years: $scope.yearsToSimulate,
           farm: JSON.parse($scope.farmVector),
-          reveg: JSON.parse($scope.revegVector)
+          reveg: JSON.parse($scope.revegVector),
+          socketio_sid: socket.id
         }
         return $http.post(url('/pollination'), postBody).then(function(resp) {
           $scope.isExecutingModel = false
@@ -295,6 +311,7 @@
       function url(suffix) {
         return $scope.baseUrl.replace(/\/$/, '') + suffix
       }
+
     })
   </script>
 </body>

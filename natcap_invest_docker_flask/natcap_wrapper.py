@@ -5,6 +5,8 @@ import copy
 import shutil
 import logging
 import base64
+# Note for eventlet: DO NOT call eventlet.monkey_patch(), it doesn't
+# work with multiprocessing
 import multiprocessing as mp
 import uuid
 
@@ -19,7 +21,9 @@ from flask.json import dumps
 from natcap_invest_docker_flask.helpers import get_records
 from reveg_alg.alg import get_values_for_year
 
-KNOWN_LAYER_NAME = 'reveg_geojson'  # ogr2ogr will use the filename as the layer name
+# ogr2ogr defaults to the filename as the layer name, we want something more
+# predictable
+KNOWN_LAYER_NAME = 'reveg_geojson'
 
 logger = logging.getLogger('natcap_wrapper')
 pygeo_logger = logging.getLogger('pygeoprocessing.geoprocessing')
@@ -34,8 +38,8 @@ data_dir_path = u'/data/pollination'
 app_docker_dir_path = u'/app/docker'
 workspace_parent_dir_path = u'/workspace/'
 reveg_lucode = 1337
-farm_lucode = 2000  # TODO do we need to add this as an entry to the LULC table or is the farm ignored?
-biophys_col_count = 5  # ignore LU_DESCRIP and comment
+farm_lucode = 2000  # only used for generating raster for humans
+biophys_col_count = 5  # ignore LU_DESCRIP and comment cols
 farm_layer_and_file_name = u'farms'
 reproj_reveg_filename = u'reprojected_' + KNOWN_LAYER_NAME + '.json'
 FAILURE_FLAG = 'BANG!!!'
@@ -362,7 +366,7 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
 
 class NatcapModelRunner(object):
     def execute_model(self, geojson_farm_vector, years_to_simulate,
-                      geojson_reveg_vector, crop_type):
+                      geojson_reveg_vector, crop_type, mark_year_as_done_fn):
         start_ms = now_in_ms()
         workspace_dir = workspace_path(generate_unique_token())
         logger.debug('using workspace dir "%s"' % workspace_dir)
@@ -372,27 +376,37 @@ class NatcapModelRunner(object):
             crop_type)
         landcover_raster_path = create_cropped_raster(farm_vector_path,
                                                       workspace_dir)
-        output = mp.Queue()
+
+        # we use a pool so we can limit the number of concurrent processes. If
+        # we just create processes we would either need to manage what's
+        # running ourselves or have them all run at the same time
+        pool = mp.Pool(mp.cpu_count())
+        # TODO ideally we'd have one Pool that is used by all clients, not one
+        # pool per HTTP request
+        manager = mp.Manager()
+        output = manager.Queue()
         processes = []
+
         processes.append(
-            mp.Process(target=run_year0,
-                       args=((farm_vector_path, landcover_raster_path,
-                              workspace_dir, output, crop_type))))
+            pool.apply_async(run_year0,
+                             (farm_vector_path, landcover_raster_path,
+                              workspace_dir, output, crop_type)))
         for curr_year in range(1, years_to_simulate + 1):
             processes.append(
-                mp.Process(target=run_future_year,
-                           args=((farm_vector_path, landcover_raster_path,
-                                  workspace_dir, curr_year,
-                                  geojson_reveg_vector, output, crop_type))))
-        for p in processes:
-            p.start()
-        for p in processes:
-            p.join()
+                pool.apply_async(
+                    run_future_year,
+                    (farm_vector_path, landcover_raster_path, workspace_dir,
+                     curr_year, geojson_reveg_vector, output, crop_type)))
         queue_results = []
+        pool.close()
+        # we don't pool.join(), instead we block on the results in the queue so
+        # we can fire notifications as processes finish. We trust that once we
+        # have all the results, all the processes are finished.
         for p in processes:
             process_result = output.get()
             if process_result == FAILURE_FLAG:
                 raise RuntimeError('Failed while executing the model')
+            mark_year_as_done_fn()
             queue_results.append(process_result)
         queue_results.sort()
         records = []
@@ -400,15 +414,15 @@ class NatcapModelRunner(object):
             year_num = curr[0]
             year_records = curr[1]
             append_records(records, year_records, year_num)
-        result = {
-            'images':
-            generate_images(workspace_dir, landcover_raster_path,
-                            farm_vector_path),
-            'records':
-            records,
-            'elapsed_ms':
-            now_in_ms() - start_ms
-        }
+            result = {
+                'images':
+                generate_images(workspace_dir, landcover_raster_path,
+                                farm_vector_path),
+                'records':
+                records,
+                'elapsed_ms':
+                now_in_ms() - start_ms
+            }
         if is_purge_workspace:
             shutil.rmtree(workspace_dir)
         logger.debug('execution time %dms' % result['elapsed_ms'])
