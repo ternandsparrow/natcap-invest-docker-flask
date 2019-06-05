@@ -221,7 +221,10 @@ class AppBuilder(object):
         # with the farm. Probably within a few kms is good enough
         log_geojson(geojson_reveg_vector, 'reveg')
         crop_type = post_body[crop_type_key]
-        socketio_sid = post_body['socketio_sid']
+        try:
+            socketio_sid = post_body['socketio_sid']
+        except KeyError:
+            socketio_sid = None
 
         def mark_year_as_done():
             if not socketio_sid:
