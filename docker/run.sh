@@ -6,4 +6,4 @@ cd `dirname "$0"`/..
 echo "[INFO] running for env=${NIDF_ENV:?set to 'development' or 'production'}"
 : ${SOCKETIO_SECRET:?set to some obscure value}
 
-python natcap_invest_docker_flask/main.py
+python3.7 natcap_invest_docker_flask/main.py

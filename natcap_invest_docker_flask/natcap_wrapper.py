@@ -199,9 +199,9 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector,
     """ clones the raster and burns the reveg landuse code into the clone using the vector """
     data = None
     result_path = os.path.join(year_workspace_dir_path, 'landcover_raster.tif')
-    with open(year0_raster_path, 'r') as f:
+    with open(year0_raster_path, 'rb') as f:
         data = f.read()
-    with open(result_path, 'w') as f:
+    with open(result_path, 'wb') as f:
         f.write(data)
     reveg_vector_path = os.path.join(year_workspace_dir_path,
                                      KNOWN_LAYER_NAME + '.json')
@@ -251,7 +251,7 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
     ],
                           stdout=subprocess.DEVNULL)
     with open(year0_farm_on_raster_path, 'rb') as f1:
-        result['base'] = base64.b64encode(f1.read())
+        result['base'] = base64.b64encode(f1.read()).decode('utf-8')
     reveg_vector_path = os.path.join(workspace_dir, 'year1',
                                      reproj_reveg_filename)
     is_only_year0_run = not os.path.isfile(reveg_vector_path)
@@ -267,7 +267,7 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
     ],
                           stdout=subprocess.DEVNULL)
     with open(reveg_and_farm_on_raster_path, 'rb') as f2:
-        result['reveg'] = base64.b64encode(f2.read())
+        result['reveg'] = base64.b64encode(f2.read()).decode('utf-8')
     return result
 
 
@@ -316,7 +316,7 @@ def get_extent(farm_vector_path):
 def load_farm_attributes(crop_type):
     """ Loads the attributes for specified crop to be used in the farm vector
         attribute table """
-    with open(farm_attribute_table_path(crop_type), 'rb') as f:
+    with open(farm_attribute_table_path(crop_type), 'r') as f:
         reader = csv.DictReader(f)
         return list(reader)
 
@@ -414,15 +414,15 @@ class NatcapModelRunner(object):
             year_num = curr[0]
             year_records = curr[1]
             append_records(records, year_records, year_num)
-            result = {
-                'images':
-                generate_images(workspace_dir, landcover_raster_path,
-                                farm_vector_path),
-                'records':
-                records,
-                'elapsed_ms':
-                now_in_ms() - start_ms
-            }
+        result = {
+            'images':
+            generate_images(workspace_dir, landcover_raster_path,
+                            farm_vector_path),
+            'records':
+            records,
+            'elapsed_ms':
+            now_in_ms() - start_ms
+        }
         if is_purge_workspace:
             shutil.rmtree(workspace_dir)
         logger.debug('execution time %dms' % result['elapsed_ms'])

@@ -39,22 +39,22 @@ get_raster &
 
 apt-get --assume-yes --no-install-recommends install \
   gdal-bin \
-  python-pip \
-  python-setuptools \
-  python-dev \
+  python3-pip \
+  python3-setuptools \
+  python3-dev \
   gcc \
   netbase \
   optipng
 
-pip install -r requirements.txt
-pip freeze > pip.freeze
+pip3 install -r requirements.txt
+pip3 freeze > pip.freeze
 wait
 
 rm -r /workspace/pollination/
 
 apt-get --assume-yes purge \
-  python-pip \
-  python-dev \
+  python3-pip \
+  python3-dev \
   gcc \
   wget \
   unzip
