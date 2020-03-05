@@ -8,4 +8,5 @@ RUN /bin/bash docker/stage1/setup.sh
 
 FROM withDeps
 ADD . /app/
+# FIXME add USER command to drop root privs
 ENTRYPOINT [ "/bin/bash", "docker/run.sh" ]

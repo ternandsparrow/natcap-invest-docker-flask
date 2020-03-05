@@ -10,7 +10,7 @@ name=natcap
 hostPort=5000
 
 # TODO change this to the Docker image tag you want to run
-dockerTag=1.2.0_f527f3a
+dockerTag=1.2.0_3.8.0
 
 # uncomment the following for a production deploy
 #theEnv=production
@@ -35,9 +35,17 @@ if [ ! -z "${LOCAL_DEV:-}" ]; then
   echo "       trigger the python debugger in here."
 fi
 
+if [ ! -z "${REMOTE_DEBUG:-}" ]; then
+  echo "[INFO] remote debugging enabled"
+  ptvsdDebugPort=3000
+  debugCommandArgs="-p $ptvsdDebugPort:$ptvsdDebugPort"
+  debugCommandArgs+=" -e PTVSD_ENABLE=1"
+  debugCommandArgs+=" -e PTVSD_PORT=$ptvsdDebugPort"
+fi
+
 echo "[INFO] starting container"
 docker run \
-  $detach \
+  $detach $debugCommandArgs \
   --name=$name \
   -p 5000:$hostPort \
   -e NIDF_ENV=${NIDF_ENV:-development} \

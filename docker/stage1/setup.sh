@@ -46,7 +46,7 @@ apt-get --assume-yes --no-install-recommends install \
   netbase \
   optipng
 
-pip3 install -r requirements.txt
+pip3 install -r requirements.txt ptvsd
 pip3 freeze > pip.freeze
 wait
 

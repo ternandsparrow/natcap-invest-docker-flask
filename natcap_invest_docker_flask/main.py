@@ -12,10 +12,26 @@ app.config['SECRET_KEY'] = socketio_secret
 socketio = SocketIO(app)
 app_builder.set_socketio(socketio)
 
+# note: this 'debug' param is not just about debugging, but also about
+# hot-reload on code change. See
+# https://flask.palletsprojects.com/en/1.1.x/api/#flask.Flask.debug
 is_debug = True
 nidf_env = os.getenv('NIDF_ENV', default='development')
 if nidf_env == 'production':
     is_debug = False
+
+ptvsd_enable = os.getenv('PTVSD_ENABLE', default=0)
+extra_run_args={}
+if ptvsd_enable == '1':
+    print('[INFO] Remote debugging, via ptvsd, is enabled')
+    # somewhat following https://vinta.ws/code/remotely-debug-a-python-app-inside-a-docker-container-in-visual-studio-code.html
+    import ptvsd
+    ptvsd_port = int(os.getenv('PTVSD_PORT', default=3000))
+    ptvsd.enable_attach(address=('0.0.0.0', ptvsd_port))
+    is_debug = False # not compatible with remote debugging
+    print('ptvsd is started, waiting for you to attach...')
+    ptvsd.wait_for_attach()
+    print('debugger is attached')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=is_debug)
