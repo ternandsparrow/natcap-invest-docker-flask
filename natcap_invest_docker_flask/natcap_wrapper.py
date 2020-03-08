@@ -386,12 +386,15 @@ class NatcapModelRunner(object):
         manager = mp.Manager()
         output = manager.Queue()
         processes = []
-
+        os.environ['PTVSD_ENABLE'] = '0' # FIXME remove
+        base_debug_port = 30000
+        os.environ['P8_CHILD_DEBUG_PORT'] = base_debug_port
         processes.append(
             pool.apply_async(run_year0,
                              (farm_vector_path, landcover_raster_path,
                               workspace_dir, output, crop_type)))
         for curr_year in range(1, years_to_simulate + 1):
+            os.environ['P8_CHILD_DEBUG_PORT'] = base_debug_port + curr_year
             processes.append(
                 pool.apply_async(
                     run_future_year,

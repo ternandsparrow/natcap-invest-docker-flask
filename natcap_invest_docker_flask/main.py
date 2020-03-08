@@ -24,12 +24,15 @@ ptvsd_enable = os.getenv('PTVSD_ENABLE', default=0)
 extra_run_args={}
 if ptvsd_enable == '1':
     print('[INFO] Remote debugging, via ptvsd, is enabled')
+    # we need to do this so we can debug multiprocessing
+    import multiprocessing
+    multiprocessing.set_start_method('spawn', True)
     # somewhat following https://vinta.ws/code/remotely-debug-a-python-app-inside-a-docker-container-in-visual-studio-code.html
     import ptvsd
-    ptvsd_port = int(os.getenv('PTVSD_PORT', default=3000))
+    ptvsd_port = int(os.getenv('P8_CHILD_DEBUG_PORT', default=3000))
     ptvsd.enable_attach(address=('0.0.0.0', ptvsd_port))
     is_debug = False # not compatible with remote debugging
-    print('ptvsd is started, waiting for you to attach...')
+    print('ptvsd is started (port=%d), waiting for you to attach...' % ptvsd_port)
     ptvsd.wait_for_attach()
     print('debugger is attached')
 
