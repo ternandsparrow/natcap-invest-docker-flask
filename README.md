@@ -127,7 +127,7 @@ tests. This means you can run tests by:
 
   1. create a virtualenv
       ```bash
-      virtualenv -p python2 .venv
+      virtualenv -p python3 .venv
       . .venv/bin/activate
       ```
   1. install the dependencies for this project (doesn't include the underlying dependencies like natcap and GDAL)
@@ -144,6 +144,9 @@ a docker container.
 
 ## Benchmarking
 The NatCap InVEST software is CPU bound so more CPUs means fasters runs. To see
-how a machine performs with varying lengths of simulation (years), you can run
-the `tests/benchmark.py` script. The output will be a CSV (written to stdout)
-that you can chart as you like.
+how a machine performs with varying lengths of simulation (years):
+
+  1. start the server (serving at localhost:5000): `./run-container.sh`
+  1. make sure you have the python requests library available: `pip install requests`
+  1. run the benchmark script: `python tests/benchmark.py`
+  1. the output will be a CSV (written to stdout) that you can chart as you like

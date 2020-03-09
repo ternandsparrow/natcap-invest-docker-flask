@@ -1,4 +1,4 @@
-FROM ternandsparrow/natcap-invest-docker:1.1.1_3.8.0 AS withDeps
+FROM ternandsparrow/natcap-invest-docker:1.1.2_3.8.0 AS withDeps
 
 WORKDIR /app/
 ADD docker/stage1/setup.sh docker/stage1/setup.sh
@@ -8,4 +8,9 @@ RUN /bin/bash docker/stage1/setup.sh
 
 FROM withDeps
 ADD . /app/
+RUN set -eux; \
+	groupadd -r nidfuser --gid=999; \
+	useradd -r -g nidfuser --uid=999 --home-dir=/workspace --shell=/bin/bash nidfuser; \
+	chown -R nidfuser:nidfuser /workspace
+USER nidfuser:nidfuser
 ENTRYPOINT [ "/bin/bash", "docker/run.sh" ]
