@@ -78,7 +78,7 @@ echo '{"crop_type":"apple","years":3,"farm":'`cat example-farm-vector.json`',"re
 Alternatively, you can go to http://localhost:5000/tester to use a web UI to interact with the service.
 
 ## Code style
-We're using (`yapf`)[https://github.com/google/yapf] to format the code in this
+We're using [yapf](https://github.com/google/yapf) to format the code in this
 repo.
 
 
