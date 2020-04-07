@@ -1,4 +1,6 @@
 # natcap-invest-docker-flask
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fternandsparrow%2Fnatcap-invest-docker-flask.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fternandsparrow%2Fnatcap-invest-docker-flask?ref=badge_shield)
+
 
 HTTP wrapper around [NatCap's InVEST](https://pypi.python.org/pypi/natcap.invest) using Flask.
 
@@ -150,3 +152,7 @@ how a machine performs with varying lengths of simulation (years):
   1. make sure you have the python requests library available: `pip install requests`
   1. run the benchmark script: `python tests/benchmark.py`
   1. the output will be a CSV (written to stdout) that you can chart as you like
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fternandsparrow%2Fnatcap-invest-docker-flask.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fternandsparrow%2Fnatcap-invest-docker-flask?ref=badge_large)
