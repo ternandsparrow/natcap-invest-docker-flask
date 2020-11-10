@@ -1,4 +1,4 @@
-FROM ternandsparrow/natcap-invest-docker:1.1.2_3.8.0 AS withDeps
+FROM ternandsparrow/natcap-invest-docker:1.1.3_3.8.9 AS withDeps
 
 WORKDIR /app/
 ADD docker/stage1/setup.sh docker/stage1/setup.sh

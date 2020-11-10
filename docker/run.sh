@@ -3,7 +3,8 @@
 set -euo pipefail
 cd `dirname "$0"`/..
 
-echo "[INFO] running for env=${NIDF_ENV:?set to 'development' or 'production'}"
 : ${SOCKETIO_SECRET:?set to some obscure value}
+envName=${NIDF_ENV:?set to 'development' or 'production'}
+echo "[INFO] running for env=$envName"
 
-python3.7 natcap_invest_docker_flask/main.py
+python natcap_invest_docker_flask/main.py

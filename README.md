@@ -24,7 +24,7 @@ disk space available to perform the run.
 
 ## Version numbers
 We tag the Git and DockerHub repos with a version scheme: `{our version}_{InVEST version}`, for example
-`1.1.1_3.6.0`.
+`1.2.2_3.8.9`.
 
 ## Running it
 

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-set -e
+set -euxo pipefail
 cd `dirname "$0"`/../..
-apt-get update
 
+apt update
+apt dist-upgrade --assume-yes
+
+# assumes the base image also uses this path
 data_dir=/data/pollination
 
 function get_raster {
-  our_dir=/tmp/foo
-  mkdir $our_dir
+  our_dir=$(mktemp --directory)
   pushd $our_dir
   raster_archive=$our_dir/raster.zip
   wget \
@@ -31,18 +33,10 @@ function get_raster {
   popd
 }
 
-apt-get --assume-yes --no-install-recommends install \
-  unzip \
-  wget
-
 get_raster &
 
 apt-get --assume-yes --no-install-recommends install \
   gdal-bin \
-  python3-pip \
-  python3-setuptools \
-  python3-dev \
-  gcc \
   netbase \
   optipng
 
@@ -52,15 +46,9 @@ wait
 
 rm -r /workspace/pollination/
 
-apt-get --assume-yes purge \
-  python3-pip \
-  python3-dev \
-  gcc \
-  wget \
-  unzip
 apt-get --assume-yes autoremove
 apt-get --assume-yes clean
 rm -rf \
- /var/lib/apt/lists/* \
- /tmp/* \
- /var/tmp/*
+  /var/lib/apt/lists/* \
+  /tmp/* \
+  /var/tmp/*
