@@ -1,4 +1,3 @@
-from natcap_invest_docker_flask.logger import logger_getter
 import os
 import sys
 import logging
@@ -6,6 +5,7 @@ from flask_socketio import SocketIO
 sys.path.insert(0,
                 os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from natcap_invest_docker_flask import AppBuilder, natcap_wrapper  # noqa E402
+from natcap_invest_docker_flask.logger import logger_getter  # noqa E402
 
 socketio_secret = os.getenv('SOCKETIO_SECRET', default='secret!')
 app_builder = AppBuilder(natcap_wrapper.NatcapModelRunner())
