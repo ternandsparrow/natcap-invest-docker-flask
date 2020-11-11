@@ -4,7 +4,5 @@ lucode,nesting_cavity_availability_index,nesting_ground_availability_index,flora
 210,0.5,0.1,0.4,0.2,Grazing native vegetation,
 320,0,0.2,0.3,0.1,Grazing modified pastures,
 330,0,0.2,0.1,0,Cropping,Canola and cereals
-320,0,0.1,0.1,0,Grazing modified pastures,
-330,0,0.1,0.1,0,Cropping,Largely hay production in the Adelaide Hills.
 440,0.1,0.2,0.2,0.2,Irrigated perennial horticulture,
 540,0.4,0.5,0.6,0.5,Residential and farm infrastructure,
