@@ -1,319 +1,451 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>natcap-invest-docker-flask tester</title>
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+      integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.css"
+    />
+    <style>
+      div.row {
+        margin-bottom: 1em;
+      }
 
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>natcap-invest-docker-flask tester</title>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.css" />
-  <style>
-    div.row {
-      margin-bottom: 1em;
-    }
+      .vector-input {
+        width: 100%;
+        height: 25em;
+        border-radius: 0.25rem;
+        border: 1px solid #ced4da;
+      }
 
-    .vector-input {
-      width: 100%;
-      height: 25em;
-      border-radius: .25rem;
-      border: 1px solid #ced4da;
-    }
+      .mono {
+        font-family: monospace;
+      }
 
-    .mono {
-      font-family: monospace;
-    }
+      input.nidf-input {
+        width: 26em;
+      }
 
-    input.nidf-input {
-      width: 26em;
-    }
+      label {
+        font-weight: bold;
+      }
 
-    label {
-      font-weight: bold;
-    }
+      .square {
+        padding: 0 0.4em;
+      }
 
-    .square {
-      padding: 0 0.4em;
-    }
+      .farm-colour {
+        background-color: rgb(202, 0, 172);
+      }
 
-    .farm-colour {
-      background-color: rgb(202, 0, 172);
-    }
+      .reveg-colour {
+        background-color: rgb(0, 202, 30);
+      }
 
-    .reveg-colour {
-      background-color: rgb(0, 202, 30);
-    }
+      .raster-img {
+        max-width: 100%;
+      }
+    </style>
+  </head>
 
-    .raster-img {
-      max-width: 100%;
-    }
-  </style>
-</head>
-
-<body ng-app="nidf">
-  <div ng-controller="MainController" class="container">
-    <div class="row">
-      <div class="col-sm">
-        <h1 class="text-center">The natcap-invest-docker-flask Tester</h1>
+  <body ng-app="nidf">
+    <div ng-controller="MainController" class="container">
+      <div class="row">
+        <div class="col-sm">
+          <h1 class="text-center">The natcap-invest-docker-flask Tester</h1>
+        </div>
       </div>
-    </div>
-    <div class="row justify-content-center">
-      <div class="col-sm">
-        <div class="card">
-          <div class="card-header">About this tool</div>
-          <div class="card-body">
-            This is a tester page. It's very basic and looks pretty average but that's ok. Its purpose is to provide
-            an easy way to test the execution of the pollination model. It's also a demo of how to build a request
-            and how the results can be displayed. You can find the source code for this app on
-            <a href="https://github.com/ternandsparrow/natcap-invest-docker-flask" target="_blank">GitHub</a>.
-            <br /><br />
-            To use the tool, adjust values as needed in the next section. Then press the 'Execute' button at the bottom
-            of the page to run the model. Results will the appear below the button.
-            <br /><br />
-            <div class="text-center">
-              <a class="btn btn-link" href="/reveg-curve.png" target="_blank">View the reveg curve as a chart</a>
+      <div class="row justify-content-center">
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">About this tool</div>
+            <div class="card-body">
+              This is a tester page. It's very basic and looks pretty average
+              but that's ok. Its purpose is to provide an easy way to test the
+              execution of the pollination model. It's also a demo of how to
+              build a request and how the results can be displayed. You can find
+              the source code for this app on
+              <a
+                href="https://github.com/ternandsparrow/natcap-invest-docker-flask"
+                target="_blank"
+                >GitHub</a
+              >. <br /><br />
+              To use the tool, adjust values as needed in the next section. Then
+              press the 'Execute' button at the bottom of the page to run the
+              model. Results will the appear below the button.
+              <br /><br />
+              <div class="text-center">
+                <a class="btn btn-link" href="/reveg-curve.png" target="_blank"
+                  >View the reveg curve as a chart</a
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">Start here!</div>
+            <div class="card-body">
+              <form>
+                <div class="form-group">
+                  <label for="inputBaseUrl" style="margin-right: 2em;"
+                    >Base URL:</label
+                  >
+                  <input
+                    type="text"
+                    ng-model="baseUrl"
+                    ng-change="updateBaseUrl()"
+                    class="form-control nidf-input"
+                    id="inputBaseUrl"
+                  />
+                  <small id="inputBaseUrlHelp" class="form-text text-muted"
+                    >We need to know the URL where we can reach the
+                    server.</small
+                  >
+                </div>
+                <div class="form-group">
+                  <label for="inputYears" style="margin-right: 2em;"
+                    >Years to simulate</label
+                  >
+                  <input
+                    type="number"
+                    ng-model="yearsToSimulate"
+                    ng-change="onYearsChange()"
+                    class="form-control nidf-input"
+                    id="inputYears"
+                  />
+                  <small id="inputYearsHelp" class="form-text text-muted"
+                    >How many years into the future should we run the
+                    simulation?</small
+                  >
+                </div>
+                <div class="alert alert-info">
+                  To edit the GeoJSON vectors:
+                  <ol>
+                    <li>
+                      click the 'edit' link under the textarea input to send the
+                      GeoJSON to geojson.io for editing
+                    </li>
+                    <li>edit the GeoJSON in the geojson.io editor</li>
+                    <li>
+                      copy the edited JSON from geojson.io to your clipboard
+                    </li>
+                    <li>
+                      come back to this page, replace everything in the textarea
+                      with your clipboard contents (paste it)
+                    </li>
+                  </ol>
+                  Note: we're talking about
+                  <a href="https://tools.ietf.org/html/rfc7946" target="_blank"
+                    >RFC7946 GeoJSON</a
+                  >
+                  with a WGS84 CRS. The CRS is implied when it's not explicitly
+                  supplied and that's what we're doing here.
+                </div>
+                <div class="form-group">
+                  <label for="cropType" style="margin-right: 2em;"
+                    >Crop type</label
+                  >
+                  <select name="cropType" ng-model="cropType">
+                    <option value="apple">Apples</option>
+                    <option value="canola">Canola</option>
+                    <option value="lucerne">Lucerne</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="inputFarmVector" style="margin-right: 2em;"
+                    >Farm Vector (GeoJSON):</label
+                  >
+                  <textarea
+                    ng-model="farmVector"
+                    id="inputFarmVector"
+                    class="mono vector-input"
+                  ></textarea>
+                  <a
+                    ng-href="http://geojson.io/#data=data:application/json,{{getEncodedVector(farmVector)}}"
+                    target="_blank"
+                    >edit: send this GeoJSON to geojson.io for editing</a
+                  >
+                </div>
+                <div class="form-group">
+                  <label for="inputRevegVector" style="margin-right: 2em;"
+                    >Revegetation Vector (GeoJSON):</label
+                  >
+                  <textarea
+                    ng-model="revegVector"
+                    id="inputRevegVector"
+                    class="mono vector-input"
+                  ></textarea>
+                  <a
+                    ng-href="http://geojson.io/#data=data:application/json,{{getEncodedVector(revegVector)}}"
+                    target="_blank"
+                    >edit: send this GeoJSON to geojson.io for editing</a
+                  >
+                </div>
+              </form>
+              <p class="text-center">
+                <button
+                  id="executeButton"
+                  class="btn btn-primary btn-lg"
+                  ng-click="executePollinationModel()"
+                  ng-disabled="isExecutingModel"
+                >
+                  <span ng-hide="isExecutingModel"
+                    >Execute pollination model</span
+                  >
+                  <span ng-show="isExecutingModel"
+                    >Processing... Completed {{processedYears}} of
+                    {{totalYearsToProcess()}} simulations</span
+                  >
+                </button>
+              </p>
+              <div class="text-center">
+                <small class="text-muted"
+                  >Estimated run time: {{runtimeEstimate}} seconds</small
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row justify-content-center" ng-show="isExecuteFailed">
+        <div id="failMessage" class="alert alert-danger" role="alert">
+          Oh no! Something failed. If you're a developer, check the console for
+          log messages.
+        </div>
+      </div>
+      <div class="row" ng-show="resultTable">
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">
+              Results: for crop_type={{cropType}} (elapsed time =
+              {{resultExecTime}}ms)
+            </div>
+            <div class="card-body">
+              <table class="table table-responsive">
+                <thead>
+                  <tr>
+                    <th ng-repeat="curr in tableHeaders | desiredHeaders">
+                      {{curr}}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr ng-repeat="curr in resultTable">
+                    <td
+                      class="mono"
+                      ng-repeat="f in tableHeaders | desiredHeaders"
+                    >
+                      {{curr[f]}}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                See
+                <a
+                  href="http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results"
+                  target="_blank"
+                  >the official docs</a
+                >
+                for how to interpret these results.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row" ng-show="resultImages">
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">Current farm configuration</div>
+            <div class="card-body text-center">
+              <img
+                ng-src="data:image/png;base64,{{resultImages.base}}"
+                class="raster-img"
+              />
+              <div><span class="square farm-colour">&nbsp;</span> Farm</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">
+              Future farm configuration with revegetation
+            </div>
+            <div class="card-body text-center">
+              <img
+                ng-src="data:image/png;base64,{{resultImages.reveg}}"
+                class="raster-img"
+              />
+              <div><span class="square farm-colour">&nbsp;</span> Farm</div>
+              <div>
+                <span class="square reveg-colour">&nbsp;</span> Revegetation
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="row justify-content-center">
-      <div class="col-sm">
-        <div class="card">
-          <div class="card-header">Start here!</div>
-          <div class="card-body">
-            <form>
-              <div class="form-group">
-                <label for="inputBaseUrl" style="margin-right: 2em;">Base URL:</label>
-                <input type="text" ng-model="baseUrl" ng-change="updateBaseUrl()" class="form-control nidf-input" id="inputBaseUrl">
-                <small id="inputBaseUrlHelp" class="form-text text-muted">We need to know the URL where we can reach the server.</small>
-              </div>
-              <div class="form-group">
-                <label for="inputYears" style="margin-right: 2em;">Years to simulate</label>
-                <input type="number" ng-model="yearsToSimulate" ng-change="onYearsChange()" class="form-control nidf-input" id="inputYears">
-                <small id="inputYearsHelp" class="form-text text-muted">How many years into the future should we run the simulation?</small>
-              </div>
-              <div class="alert alert-info">
-                To edit the GeoJSON vectors:
-                <ol>
-                  <li>click the 'edit' link under the textarea input to send the GeoJSON to geojson.io for editing</li>
-                  <li>edit the GeoJSON in the geojson.io editor</li>
-                  <li>copy the edited JSON from geojson.io to your clipboard</li>
-                  <li>come back to this page, replace everything in the textarea with your clipboard contents (paste it)</li>
-                </ol>
-                Note: we're talking about <a href="https://tools.ietf.org/html/rfc7946" target="_blank">RFC7946 GeoJSON</a> with a WGS84 CRS.
-                The CRS is implied when it's not explicitly supplied and that's what we're doing here.
-              </div>
-              <div class="form-group">
-                <label for="cropType" style="margin-right: 2em;">Crop type</label>
-                <select name="cropType" ng-model="cropType">
-                  <option value="apple">Apples</option>
-                  <option value="canola">Canola</option>
-                  <option value="lucerne">Lucerne</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="inputFarmVector" style="margin-right: 2em;">Farm Vector (GeoJSON):</label>
-                <textarea ng-model="farmVector" id="inputFarmVector" class="mono vector-input"></textarea>
-                <a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedVector(farmVector)}}" target="_blank">edit: send this GeoJSON to geojson.io for editing</a>
-              </div>
-              <div class="form-group">
-                <label for="inputRevegVector" style="margin-right: 2em;">Revegetation Vector (GeoJSON):</label>
-                <textarea ng-model="revegVector" id="inputRevegVector" class="mono vector-input"></textarea>
-                <a ng-href="http://geojson.io/#data=data:application/json,{{getEncodedVector(revegVector)}}" target="_blank">edit: send this GeoJSON to geojson.io for editing</a>
-              </div>
-            </form>
-            <p class="text-center">
-              <button id="executeButton" class="btn btn-primary btn-lg" ng-click="executePollinationModel()" ng-disabled="isExecutingModel">
-                <span ng-hide="isExecutingModel">Execute pollination model</span>
-                <span ng-show="isExecutingModel">Processing... Completed {{processedYears}} of {{totalYearsToProcess()}} simulations</span>
-              </button>
-            </p>
-            <div class="text-center">
-              <small class="text-muted">Estimated run time:
-                {{runtimeEstimate}} seconds</small>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="row justify-content-center" ng-show="isExecuteFailed">
-      <div id="failMessage" class="alert alert-danger" role="alert">
-        Oh no! Something failed. If you're a developer, check the console for log messages.
-      </div>
-    </div>
-    <div class="row" ng-show="resultTable">
-      <div class="col-sm">
-        <div class="card">
-          <div class="card-header">Results: for crop_type={{cropType}} (elapsed time = {{resultExecTime}}ms)</div>
-          <div class="card-body">
-            <table class="table table-responsive">
-              <thead>
-                <tr>
-                  <th ng-repeat="curr in tableHeaders | desiredHeaders">{{curr}}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr ng-repeat="curr in resultTable">
-                  <td class="mono" ng-repeat="f in tableHeaders | desiredHeaders">{{curr[f]}}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p>See <a href="http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#final-results" target="_blank">the official docs</a>
-              for how to interpret these results.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="row" ng-show="resultImages">
-      <div class="col-sm">
-        <div class="card">
-          <div class="card-header">Current farm configuration</div>
-          <div class="card-body text-center">
-            <img ng-src="data:image/png;base64,{{resultImages.base}}" class="raster-img">
-            <div><span class="square farm-colour">&nbsp;</span> Farm</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-sm">
-        <div class="card">
-          <div class="card-header">Future farm configuration with revegetation</div>
-          <div class="card-body text-center">
-            <img ng-src="data:image/png;base64,{{resultImages.reveg}}" class="raster-img">
-            <div><span class="square farm-colour">&nbsp;</span> Farm</div>
-            <div><span class="square reveg-colour">&nbsp;</span> Revegetation</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.7.1/angular-local-storage.min.js"></script>
-  <script type="text/javascript">
-    var socket = io()
-    socket.on('connect', function() {
-      console.log('socket.io connected!')
-    })
-    var app = angular.module('nidf', ['angular-loading-bar', 'LocalStorageModule'])
-    app.config(function(localStorageServiceProvider) {
-      localStorageServiceProvider.setPrefix('nidf')
-    })
-    app.filter('desiredHeaders', function() {
-      return function(x) {
-        var accepted = ['year', 'season', 'p_abund', 'pdep_y_w', 'y_tot', 'y_wild']
-        return accepted
-      }
-    })
-    app.controller('MainController', function($scope, $http, $anchorScroll, $timeout, localStorageService) {
-      var BASE_URL_KEY = 'base_url'
-      $scope.baseUrl = getBaseUrlFromStorage()
-      $scope.isExecutingModel = false
-      $scope.isExecuteFailed = false
-      $scope.tableHeaders = []
-      $scope.farmVector = '{j{example_farm_vector|safe}j}'
-      $scope.revegVector = '{j{example_reveg_vector|safe}j}'
-      $scope.cropType = 'apple'
-      $scope.yearsToSimulate = 3
-      $scope.runtimeEstimate = 'about 15'
-      $scope.processedYears = 0
-      $scope.totalYearsToProcess = function() {
-        var oneForTheCurrentYear = 1
-        return $scope.yearsToSimulate + oneForTheCurrentYear
-      }
-      socket.on('year-complete', function(payload) {
-        console.log('Marking another year as done', payload)
-        $scope.processedYears += 1
-      })
-      $scope.executePollinationModel = function() {
-        $scope.processedYears = 0
-        $scope.isExecutingModel = true
-        $scope.isExecuteFailed = false
-        $scope.resultTable = null
-        $scope.resultImages = null
-        var postBody = {
-          crop_type: $scope.cropType,
-          years: $scope.yearsToSimulate,
-          farm: JSON.parse($scope.farmVector),
-          reveg: JSON.parse($scope.revegVector),
-          socketio_sid: socket.id
-        }
-        return $http.post(url('/pollination'), postBody).then(function(resp) {
-          $scope.isExecutingModel = false
-          $scope.resultTable = resp.data.records
-          $scope.resultImages = resp.data.images
-          $scope.resultExecTime = resp.data.elapsed_ms
-          $scope.tableHeaders = updateTableHeaders()
-          $timeout(function() {
-            $anchorScroll('executeButton')
-          }, 50)
-        }, function(resp) {
-          $scope.isExecutingModel = false
-          console.error('Failed to make HTTP call')
-          $scope.isExecuteFailed = true
-          $timeout(function() {
-            $anchorScroll('failMessage')
-          }, 50)
-        })
-      }
+    <script
+      src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"
+      integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I="
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.7.1/angular-local-storage.min.js"></script>
+    <script type="text/javascript">
+      var socket = io();
+      socket.on("connect", function () {
+        console.log("socket.io connected!");
+      });
+      var app = angular.module("nidf", [
+        "angular-loading-bar",
+        "LocalStorageModule",
+      ]);
+      app.config(function (localStorageServiceProvider) {
+        localStorageServiceProvider.setPrefix("nidf");
+      });
+      app.filter("desiredHeaders", function () {
+        return function (x) {
+          var accepted = [
+            "year",
+            "season",
+            "p_abund",
+            "pdep_y_w",
+            "y_tot",
+            "y_wild",
+          ];
+          return accepted;
+        };
+      });
+      app.controller("MainController", function (
+        $scope,
+        $http,
+        $anchorScroll,
+        $timeout,
+        localStorageService
+      ) {
+        var BASE_URL_KEY = "base_url";
+        $scope.baseUrl = getBaseUrlFromStorage();
+        $scope.isExecutingModel = false;
+        $scope.isExecuteFailed = false;
+        $scope.tableHeaders = [];
+        $scope.farmVector = "{j{example_farm_vector|safe}j}";
+        $scope.revegVector = "{j{example_reveg_vector|safe}j}";
+        $scope.cropType = "apple";
+        $scope.yearsToSimulate = 3;
+        $scope.runtimeEstimate = "about 15";
+        $scope.processedYears = 0;
+        $scope.totalYearsToProcess = function () {
+          var oneForTheCurrentYear = 1;
+          return $scope.yearsToSimulate + oneForTheCurrentYear;
+        };
+        socket.on("year-complete", function (payload) {
+          console.log("Marking another year as done", payload);
+          $scope.processedYears += 1;
+        });
+        $scope.executePollinationModel = function () {
+          $scope.processedYears = 0;
+          $scope.isExecutingModel = true;
+          $scope.isExecuteFailed = false;
+          $scope.resultTable = null;
+          $scope.resultImages = null;
+          var postBody = {
+            crop_type: $scope.cropType,
+            years: $scope.yearsToSimulate,
+            farm: JSON.parse($scope.farmVector),
+            reveg: JSON.parse($scope.revegVector),
+            socketio_sid: socket.id,
+          };
+          return $http.post(url("/pollination"), postBody).then(
+            function (resp) {
+              $scope.isExecutingModel = false;
+              $scope.resultTable = resp.data.records;
+              $scope.resultImages = resp.data.images;
+              $scope.resultExecTime = resp.data.elapsed_ms;
+              $scope.tableHeaders = updateTableHeaders();
+              $timeout(function () {
+                $anchorScroll("executeButton");
+              }, 50);
+            },
+            function (resp) {
+              $scope.isExecutingModel = false;
+              console.error("Failed to make HTTP call");
+              $scope.isExecuteFailed = true;
+              $timeout(function () {
+                $anchorScroll("failMessage");
+              }, 50);
+            }
+          );
+        };
 
-      $scope.updateBaseUrl = function() {
-        if (!localStorageService.isSupported) {
-          return
-        }
-        localStorageService.set(BASE_URL_KEY, $scope.baseUrl)
-      }
-
-      $scope.getEncodedVector = function(vectorData) {
-        if (!vectorData) {
-          return ''
-        }
-        var parsed = JSON.parse(vectorData) // to remove whitespace
-        return encodeURIComponent(JSON.stringify(parsed))
-      }
-
-      function getBaseUrlFromStorage() {
-        var defaultBaseUrl = '{j{ url_root }j}' // this param comes from Flask+Jinja2
-        if (!localStorageService.isSupported) {
-          return defaultBaseUrl
-        }
-        var result = localStorageService.get(BASE_URL_KEY)
-        if (result) {
-          return result
-        }
-        return defaultBaseUrl
-      }
-
-      function updateTableHeaders() {
-        if (!$scope.resultTable) {
-          return []
-        }
-        var first = $scope.resultTable[0]
-        return Object.keys(first).reduce(function(accum, curr) {
-          if (curr.startsWith('$')) {
-            return accum
+        $scope.updateBaseUrl = function () {
+          if (!localStorageService.isSupported) {
+            return;
           }
-          accum.push(curr)
-          return accum
-        }, [])
-      }
+          localStorageService.set(BASE_URL_KEY, $scope.baseUrl);
+        };
 
-      $scope.onYearsChange = function() {
-        return $http.get(url('/estimate-runtime?years=' +
-          $scope.yearsToSimulate)).then(function(resp) {
-          $scope.runtimeEstimate = resp.data.seconds
-        })
-      }
+        $scope.getEncodedVector = function (vectorData) {
+          if (!vectorData) {
+            return "";
+          }
+          var parsed = JSON.parse(vectorData); // to remove whitespace
+          return encodeURIComponent(JSON.stringify(parsed));
+        };
 
-      $scope.url = url
+        function getBaseUrlFromStorage() {
+          var defaultBaseUrl = "{j{ url_root }j}"; // this param comes from Flask+Jinja2
+          if (!localStorageService.isSupported) {
+            return defaultBaseUrl;
+          }
+          var result = localStorageService.get(BASE_URL_KEY);
+          if (result) {
+            return result;
+          }
+          return defaultBaseUrl;
+        }
 
-      function url(suffix) {
-        return $scope.baseUrl.replace(/\/$/, '') + suffix
-      }
+        function updateTableHeaders() {
+          if (!$scope.resultTable) {
+            return [];
+          }
+          var first = $scope.resultTable[0];
+          return Object.keys(first).reduce(function (accum, curr) {
+            if (curr.startsWith("$")) {
+              return accum;
+            }
+            accum.push(curr);
+            return accum;
+          }, []);
+        }
 
-    })
-  </script>
-</body>
+        $scope.onYearsChange = function () {
+          return $http
+            .get(url("/estimate-runtime?years=" + $scope.yearsToSimulate))
+            .then(function (resp) {
+              $scope.runtimeEstimate = resp.data.seconds;
+            });
+        };
 
+        $scope.url = url;
+
+        function url(suffix) {
+          return $scope.baseUrl.replace(/\/$/, "") + suffix;
+        }
+      });
+    </script>
+  </body>
 </html>
