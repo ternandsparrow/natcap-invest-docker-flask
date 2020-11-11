@@ -1,5 +1,7 @@
+from natcap_invest_docker_flask.logger import logger_getter
 import os
 import sys
+import logging
 from flask_socketio import SocketIO
 sys.path.insert(0,
                 os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -16,6 +18,9 @@ is_debug = True
 nidf_env = os.getenv('NIDF_ENV', default='development')
 if nidf_env == 'production':
     is_debug = False
+    logger = logger_getter.get_app_logger()
+    logger.setLevel(logging.INFO)
+    logger.info('Logger set to INFO level')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=is_debug)

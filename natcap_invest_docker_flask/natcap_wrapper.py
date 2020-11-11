@@ -18,14 +18,16 @@ import osgeo.osr as osr
 import numpy as np
 from flask.json import dumps
 
-from natcap_invest_docker_flask.helpers import get_records
+from natcap_invest_docker_flask.helpers import \
+    get_records, biophys_col_count, fill_in_and_write
+from natcap_invest_docker_flask.logger import logger_getter
 from reveg_alg.alg import get_values_for_year
 
 # ogr2ogr defaults to the filename as the layer name, we want something more
 # predictable
 KNOWN_LAYER_NAME = 'reveg_geojson'
 
-logger = logging.getLogger('natcap_wrapper')
+logger = logger_getter.get_app_logger()
 pygeo_logger = logging.getLogger('pygeoprocessing.geoprocessing')
 pygeo_logger.setLevel(logging.WARN)
 
@@ -39,7 +41,6 @@ app_docker_dir_path = u'/app/docker'
 workspace_parent_dir_path = u'/workspace/'
 reveg_lucode = 1337
 farm_lucode = 2000  # only used for generating raster for humans
-biophys_col_count = 5  # ignore LU_DESCRIP and comment cols
 farm_layer_and_file_name = u'farms'
 reproj_reveg_filename = u'reprojected_' + KNOWN_LAYER_NAME + '.json'
 FAILURE_FLAG = 'BANG!!!'
@@ -69,6 +70,7 @@ def generate_unique_token():
 
 def get_reveg_biophysical_table_row_for_year(year):
     val = get_values_for_year(year)
+    logger.debug('[year %d] biophys table reveg row is %s' % (year, val))
     return [[
         reveg_lucode,
         val['nesting_cavity'],
@@ -109,37 +111,19 @@ def append_records(record_collector, new_records, year_number):
         record_collector.append(curr)
 
 
-def fill_in_and_write(biophys_table, file_path):
-    """
-    Add default entries for all missing LULC codes and write to filesystem
-      biophys_table:  2d numpy array of existing LULC records
-      file_path:      where to write the CSV
-    """
-    existing_lulc_codes = biophys_table[:, 0]
-    extra_codes = []
-    max_lulc_code = 699
-    for curr in range(max_lulc_code):
-        if curr in existing_lulc_codes:
-            continue
-        values = [0 for x in range(1, biophys_col_count)]
-        extra_codes.append([curr] + list(values))
-    completed_table = np.concatenate((biophys_table, extra_codes), axis=0)
-    # TODO perhaps should read this header from the CSV file(s)
-    with open(file_path, 'w') as f:
-        f.write('lucode,')
-        f.write('nesting_cavity_availability_index,')
-        f.write('nesting_ground_availability_index,')
-        f.write('floral_resources_spring_index,')
-        f.write('floral_resources_summer_index\n')
-        format_template = ','.join(['%d' for x in range(biophys_col_count)])
-        np.savetxt(f, completed_table, fmt=format_template)
-
-
 def read_biophys_table_from_file(file_path):
     return np.genfromtxt(file_path,
                          skip_header=1,
                          delimiter=',',
                          usecols=range(biophys_col_count))
+
+
+def debug_dump_bp_table(bp_table, year_num):
+    if not logger.isEnabledFor(logging.DEBUG):
+        return
+    # thanks https://stackoverflow.com/a/2891805/1410035
+    with np.printoptions(precision=5, suppress=True):
+        logger.debug('[year %d] biophys table:\n%s' % (year_num, bp_table))
 
 
 def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
@@ -150,6 +134,7 @@ def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
         os.mkdir(year0_workspace_dir_path)
         landcover_bp_table_path = landcover_biophys_table_path(crop_type)
         bp_table = read_biophys_table_from_file(landcover_bp_table_path)
+        debug_dump_bp_table(bp_table, 0)
         year0_biophys_table_path = os.path.join(
             year0_workspace_dir_path, 'landcover_biophysical_table.csv')
         fill_in_and_write(bp_table, year0_biophys_table_path)
@@ -171,16 +156,11 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
         year_workspace_dir_path = os.path.join(workspace_dir,
                                                'year' + str(year_number))
         os.mkdir(year_workspace_dir_path)
-        base_landcover_bp_table_path = landcover_biophys_table_path(crop_type)
-        bp_table = np.genfromtxt(base_landcover_bp_table_path,
-                                 skip_header=1,
-                                 delimiter=',',
-                                 usecols=range(biophys_col_count))
-        reveg_row = get_reveg_biophysical_table_row_for_year(year_number)
-        new_bp_table = np.concatenate((bp_table, reveg_row), axis=0)
+        bp_table = build_biophys_table(crop_type, year_number)
+        debug_dump_bp_table(bp_table, year_number)
         curr_year_landcover_bp_table_path = os.path.join(
             year_workspace_dir_path, 'landcover_biophysical_table.csv')
-        fill_in_and_write(new_bp_table, curr_year_landcover_bp_table_path)
+        fill_in_and_write(bp_table, curr_year_landcover_bp_table_path)
         new_landcover_raster_path = burn_reveg_on_raster(
             landcover_raster_path, reveg_vector, year_workspace_dir_path)
         records = run_natcap_pollination(farm_vector_path,
@@ -194,9 +174,21 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
         output_queue.put(FAILURE_FLAG)
 
 
+def build_biophys_table(crop_type, year_number):
+    base_landcover_bp_table_path = landcover_biophys_table_path(crop_type)
+    bp_table = np.genfromtxt(base_landcover_bp_table_path,
+                             skip_header=1,
+                             delimiter=',',
+                             usecols=range(biophys_col_count))
+    reveg_row = get_reveg_biophysical_table_row_for_year(year_number)
+    result = np.concatenate((bp_table, reveg_row), axis=0)
+    return result
+
+
 def burn_reveg_on_raster(year0_raster_path, reveg_vector,
                          year_workspace_dir_path):
-    """ clones the raster and burns the reveg landuse code into the clone using the vector """
+    """ clones the raster and burns the reveg landuse code into the clone using
+    the vector """
     data = None
     result_path = os.path.join(year_workspace_dir_path, 'landcover_raster.tif')
     with open(year0_raster_path, 'rb') as f:
@@ -215,7 +207,7 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector,
         str(reveg_lucode), '-l', KNOWN_LAYER_NAME,
         reprojected_reveg_vector_path, result_path
     ],
-                          stdout=subprocess.DEVNULL)
+        stdout=subprocess.DEVNULL)
     return result_path
 
 
@@ -225,7 +217,7 @@ def reproject_geojson_to_epsg3107(workspace_dir_path, geojson_path):
         [
             '/usr/bin/ogr2ogr',
             '-s_srs',
-            'EPSG:4326',  # assuming the incoming geojson has no CRS so WGS84 is implied
+            'EPSG:4326',  # assuming no CRS so WGS84 is implied
             '-t_srs',
             'EPSG:3107',
             '-f',
@@ -249,7 +241,7 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
         year0_farm_on_raster_path, farm_vector_path, farm_layer_and_file_name,
         str(farm_lucode)
     ],
-                          stdout=subprocess.DEVNULL)
+        stdout=subprocess.DEVNULL)
     with open(year0_farm_on_raster_path, 'rb') as f1:
         result['base'] = base64.b64encode(f1.read()).decode('utf-8')
     reveg_vector_path = os.path.join(workspace_dir, 'year1',
@@ -265,7 +257,7 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
         reveg_and_farm_on_raster_path, reveg_vector_path, KNOWN_LAYER_NAME,
         str(reveg_lucode)
     ],
-                          stdout=subprocess.DEVNULL)
+        stdout=subprocess.DEVNULL)
     with open(reveg_and_farm_on_raster_path, 'rb') as f2:
         result['reveg'] = base64.b64encode(f2.read()).decode('utf-8')
     return result
@@ -279,7 +271,9 @@ def create_cropped_raster(farm_vector_path, workspace_dir):
     subprocess.check_call(
         [
             '/usr/bin/gdal_translate',
-            '-projwin',  # probably specific to southern hemisphere and Australia's side of 0 degree longitude
+            '-projwin',
+            # probably specific to southern hemisphere and Australia's side of
+            # 0 degree longitude.
             vector_extent['x_min'],
             vector_extent['y_max'],
             vector_extent['x_max'],

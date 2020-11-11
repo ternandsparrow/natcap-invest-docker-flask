@@ -2,7 +2,6 @@ import unittest
 import os
 import logging
 
-from flask import abort
 from flask.json import loads, dumps
 
 from .context import natcap_invest_docker_flask

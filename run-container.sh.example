@@ -27,8 +27,9 @@ fi
 detach='--detach'
 
 if [ ! -z "${LOCAL_DEV:-}" ]; then
+  dontPurge=0 # keeps outputs in work dir after run
   detach='-it'
-  fragment="-v $(pwd):/app --entrypoint bash"
+  fragment="-v $(pwd):/app --entrypoint bash -e PURGE_WORKSPACE=$dontPurge"
   echo "[INFO] you're in local dev mode so we've dropped you to a shell."
   echo "       Start the app with ./docker/run.sh. You can also Ctrl-c"
   echo "       back to this shell and inspect the output files in /workspace."

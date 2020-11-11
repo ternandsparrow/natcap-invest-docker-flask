@@ -1,6 +1,5 @@
 import os
 import math
-import logging
 import multiprocessing
 
 from flask import Flask, jsonify, render_template, request, Response
@@ -12,11 +11,10 @@ from flask_inputs.validators import JsonSchema
 import geojson
 
 from natcap_invest_docker_flask.schema import schema as pollination_schema
+from natcap_invest_docker_flask.logger import logger_getter
 import reveg_alg.plot
 
-logging.basicConfig()
-logger = logging.getLogger('natcap_wrapper')
-logger.setLevel(logging.DEBUG)
+logger = logger_getter.get_app_logger()
 
 MAX_YEARS_TO_SIMULATE = 30
 crop_type_key = 'crop_type'

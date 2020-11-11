@@ -5,13 +5,13 @@ This lets you run the server with a stub impl so you iterate quickly for dev wor
 
 It's executable so just run it.
 """
+import natcap_invest_docker_flask
 import os
 import sys
 import base64
 thisdir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0,
                 os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import natcap_invest_docker_flask
 
 
 def get_base64_image_src_string(image_path):
