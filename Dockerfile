@@ -1,9 +1,9 @@
-FROM ternandsparrow/natcap-invest-docker:1.1.3_3.8.9 AS withDeps
+FROM ternandsparrow/natcap-invest-docker:1.1.4_3.8.9 AS withDeps
 
 WORKDIR /app/
-ADD docker/stage1/setup.sh docker/stage1/setup.sh
+ADD docker/setup.sh docker/setup.sh
 ADD requirements.txt .
-RUN /bin/bash docker/stage1/setup.sh
+RUN /bin/bash docker/setup.sh
 
 
 FROM withDeps

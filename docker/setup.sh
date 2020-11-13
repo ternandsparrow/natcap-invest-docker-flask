@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euxo pipefail
-cd `dirname "$0"`/../..
+cd `dirname "$0"`/..
 
 apt update
 apt dist-upgrade --assume-yes
 
-# assumes the base image also uses this path
 data_dir=/data/pollination
+mkdir -p $data_dir
 
 function get_raster {
   our_dir=$(mktemp --directory)
@@ -22,7 +22,6 @@ function get_raster {
     exit 1
   fi
   gzip *.tif
-  rm -rf $data_dir/*
   theArchive=$data_dir/south_australia_landcover.tif.gz
   mv *.tif.gz $theArchive
   if [ ! -f $theArchive ]; then
@@ -44,7 +43,8 @@ pip3 install -r requirements.txt
 pip3 freeze > pip.freeze
 wait
 
-rm -r /workspace/pollination/
+# remove anything from the base image
+rm -fr /workspace/*
 
 apt-get --assume-yes autoremove
 apt-get --assume-yes clean
