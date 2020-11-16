@@ -28,8 +28,9 @@ from reveg_alg.alg import get_values_for_year
 KNOWN_LAYER_NAME = 'reveg_geojson'
 
 logger = logger_getter.get_app_logger()
-pygeo_logger = logging.getLogger('pygeoprocessing.geoprocessing')
-pygeo_logger.setLevel(logging.WARN)
+logging.getLogger('natcap').setLevel(logging.WARN)
+logging.getLogger('taskgraph').setLevel(logging.WARN)
+logging.getLogger('pygeoprocessing').setLevel(logging.WARN)
 
 metres_of_padding_for_farm = int(os.getenv('FARM_PADDING_METRES', 3000))
 logger.info('Using farm padding of %d metres' % metres_of_padding_for_farm)
@@ -203,10 +204,10 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector,
         year_workspace_dir_path, reveg_vector_path)
     # feel the burn!
     subprocess.check_call([
-        '/usr/bin/gdal_rasterize', '-burn',
-        str(reveg_lucode), '-l', KNOWN_LAYER_NAME,
-        reprojected_reveg_vector_path, result_path
-    ],
+            '/usr/bin/gdal_rasterize', '-burn',
+            str(reveg_lucode), '-l', KNOWN_LAYER_NAME,
+            reprojected_reveg_vector_path, result_path
+        ],
         stdout=subprocess.DEVNULL)
     return result_path
 
@@ -359,8 +360,21 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
 
 
 class NatcapModelRunner(object):
-    def execute_model(self, geojson_farm_vector, years_to_simulate,
-                      geojson_reveg_vector, crop_type, mark_year_as_done_fn):
+    def execute_model(self, *args, **kwargs):
+        return self._execute_model(create_cropped_raster, *args, **kwargs)
+
+    def execute_model_for_sample_data(self, *args, **kwargs):
+        self.run_prep_sample_data_script()
+
+        def raster_fn(_, _2):
+            # only works in the docker container, because that's where the data
+            # comes from.
+            return 'u/data/pollination-sample/landcover.tif'
+        return self._execute_model(raster_fn, *args, **kwargs)
+
+    def _execute_model(self, landcover_raster_cropper_fn, geojson_farm_vector,
+                       years_to_simulate, geojson_reveg_vector, crop_type,
+                       mark_year_as_done_fn):
         start_ms = now_in_ms()
         workspace_dir = workspace_path(generate_unique_token())
         logger.debug('using workspace dir "%s"' % workspace_dir)
@@ -368,8 +382,8 @@ class NatcapModelRunner(object):
         farm_vector_path = transform_geojson_to_shapefile(
             geojson_farm_vector, farm_layer_and_file_name, workspace_dir,
             crop_type)
-        landcover_raster_path = create_cropped_raster(farm_vector_path,
-                                                      workspace_dir)
+        landcover_raster_path = landcover_raster_cropper_fn(farm_vector_path,
+                                                            workspace_dir)
 
         # we use a pool so we can limit the number of concurrent processes. If
         # we just create processes we would either need to manage what's
@@ -421,3 +435,10 @@ class NatcapModelRunner(object):
             shutil.rmtree(workspace_dir)
         logger.debug('execution time %dms' % result['elapsed_ms'])
         return result
+
+    def run_prep_sample_data_script(self):
+        logger.debug('Preparing files needed for run with NatCap sample data')
+        subprocess.check_call([
+                '/app/docker/prep-for-sample-data-run.sh'
+            ],
+            stdout=subprocess.DEVNULL)

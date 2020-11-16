@@ -30,11 +30,19 @@ if [ ! -z "${LOCAL_DEV:-}" ]; then
   dontPurge=0 # keeps outputs in work dir after run
   detach='-it'
   fragment="-v $(pwd):/app --entrypoint bash -e PURGE_WORKSPACE=$dontPurge"
-  echo "[INFO] you're in local dev mode so we've dropped you to a shell."
-  echo "       Start the app with ./docker/run.sh. You can also Ctrl-c"
-  echo "       back to this shell and inspect the output files in /workspace."
-  echo "       Add the code 'import pdb; pdb.set_trace()' in the source to"
-  echo "       trigger the python debugger in here."
+  cat <<EOF
+[INFO] you're in local dev mode so we've dropped you to a shell.
+ - Start the app with ./docker/run.sh.
+ - You can also Ctrl-c back to this shell and inspect the output files in
+   /workspace.
+ - Add the code 'import pdb; pdb.set_trace()' in the source to trigger the
+   python debugger in here.
+ - If running the official NatCap sample data, our setuid magic breaks down in
+   this "local dev" env. To fix this, run in a separate terminal:
+      docker exec -it --user 0 natcap bash # start a root shell
+      ./docker/prep-for-sample-data-run.sh # run the prep
+   ...then you can come back here and carry on without error.
+EOF
 fi
 
 echo "[INFO] starting container"

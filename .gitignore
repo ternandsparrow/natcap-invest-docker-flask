@@ -5,3 +5,9 @@
 run-container.sh
 reveg_alg/reveg.png
 todo
+docker/farm_attribute_table/almonds.csv
+docker/farm_attribute_table/blueberries.csv
+docker/guild_table/almonds.csv
+docker/guild_table/blueberries.csv
+docker/landcover_biophysical_table/almonds.csv
+docker/landcover_biophysical_table/blueberries.csv

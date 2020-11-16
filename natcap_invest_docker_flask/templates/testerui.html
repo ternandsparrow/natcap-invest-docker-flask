@@ -153,6 +153,26 @@
                   with a WGS84 CRS. The CRS is implied when it's not explicitly
                   supplied and that's what we're doing here.
                 </div>
+                <div class="alert alert-info">
+                  <h3>NatCap official sample data</h3>
+                  <p>You can load the official sample data that comes with the
+                  natcap software and use it to run through our framework. This
+                  will clobber the data in the input fields below. The reveg is
+                  dynamically generated as a triangle based on the first three
+                  points, so you might want to tweak that.</p>
+                  <p>First, load the available sample data from the server.
+                  Then choose a crop to load the GeoJSON into the inputs.</p>
+                  <p>
+                  <button ng-click="getSampleData()">
+                    1. Get NatCap official sample data
+                  </button>
+                  </p>
+                  <p>
+                  <button ng-repeat="curr in sampleDataCropsKeys"
+                    ng-click="loadSampleData(curr)">
+                    Load geojson for {{curr}}</button>
+                  </p>
+                </div>
                 <div class="form-group">
                   <label for="cropType" style="margin-right: 2em;"
                     >Crop type</label
@@ -352,6 +372,22 @@
           var oneForTheCurrentYear = 1;
           return $scope.yearsToSimulate + oneForTheCurrentYear;
         };
+        $scope.sampleDataCrops = {}
+        $scope.sampleDataCropsKeys = function () {
+          return Object.keys($scope.sampleDataCrops)
+        }
+        $scope.getSampleData = function () {
+          $http.get(url("/get-sample-data")).then(resp => {
+            $scope.sampleDataCrops = resp.data
+            $scope.sampleDataCropsKeys = Object.keys(resp.data)
+          })
+        }
+        $scope.loadSampleData = function (cropName) {
+          const found = $scope.sampleDataCrops[cropName]
+          $scope.farmVector = JSON.stringify(found.farm, null, 2)
+          $scope.revegVector = JSON.stringify(found.reveg, null, 2)
+          $scope.cropType = cropName
+        }
         socket.on("year-complete", function (payload) {
           console.log("Marking another year as done", payload);
           $scope.processedYears += 1;

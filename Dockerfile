@@ -1,16 +1,13 @@
 FROM ternandsparrow/natcap-invest-docker:1.1.4_3.8.9 AS withDeps
 
 WORKDIR /app/
-ADD docker/setup.sh docker/setup.sh
+ADD docker/setup1.sh docker/setup1.sh
 ADD requirements.txt .
-RUN /bin/bash docker/setup.sh
+RUN /bin/bash docker/setup1.sh
 
 
 FROM withDeps
 ADD . /app/
-RUN set -eux; \
-	groupadd -r nidfuser --gid=999; \
-	useradd -r -g nidfuser --uid=999 --home-dir=/workspace --shell=/bin/bash nidfuser; \
-	chown -R nidfuser:nidfuser /workspace
+RUN docker/setup2.sh
 USER nidfuser:nidfuser
 ENTRYPOINT [ "/bin/bash", "docker/run.sh" ]

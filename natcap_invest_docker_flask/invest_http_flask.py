@@ -3,7 +3,7 @@ import math
 import multiprocessing
 
 from flask import Flask, jsonify, render_template, request, Response
-from flask.json import dumps
+from flask.json import loads, dumps
 from flask_accept import accept
 from flask_cors import CORS
 from flask_inputs import Inputs
@@ -109,7 +109,7 @@ def root():
     })
 
 
-def validate_request(request_dict):
+def validate_request(request_dict, force_crop=False):
     try:
         required_keys = ['years', crop_type_key, 'farm', 'reveg']
         for curr in required_keys:
@@ -118,7 +118,8 @@ def validate_request(request_dict):
         raise InvalidUsage('POST body must have the keys: ' +
                            str(required_keys))
     valid_crop_types = ['apple', 'canola', 'lucerne']
-    if not request_dict[crop_type_key] in valid_crop_types:
+    crop_type = request_dict[crop_type_key]
+    if not crop_type in valid_crop_types:
         raise InvalidUsage('crop_type must be one of: ' +
                            str(valid_crop_types))
     assert_geojson(request_dict['farm'])
@@ -189,24 +190,55 @@ class AppBuilder(object):
         return app
 
     def _bind_routes(self):
+        def post_route(rule, view_func):
+            self.app.add_url_rule(rule,
+                                  rule.replace('/', ''),
+                                  view_func,
+                                  methods=['POST'])
+
         self.app.add_url_rule('/', 'root', root)
-        self.app.add_url_rule('/pollination',
-                              'pollination',
-                              self.pollination,
-                              methods=['POST'])
-        self.app.add_url_rule('/tester', 'tester', tester)
-        self.app.add_url_rule('/estimate-runtime', 'estimate_runtime',
-                              estimate_runtime)
-        self.app.add_url_rule('/reveg-curve.png', 'reveg_curve_png',
-                              reveg_curve_png)
+        post_route('/pollination', self.pollination)
+        self.app.add_url_rule('/tester', view_func=tester)
+        self.app.add_url_rule('/get-sample-data',
+                              view_func=self.get_sample_data)
+        post_route('/run-sample', self.run_sample)
+        self.app.add_url_rule('/estimate-runtime', view_func=estimate_runtime)
+        self.app.add_url_rule('/reveg-curve.png', view_func=reveg_curve_png)
+
+
+    def get_sample_data(self):
+        """ gets data the UI needs to run the official NatCap sample data """
+        self.model_runner.run_prep_sample_data_script()
+        with open('/data/pollination-sample/ui.json') as f:
+            content = f.read()
+            resp = Response(content, mimetype='application/json')
+            return resp
+
+    @accept('application/json')
+    def run_sample(self):
+        """ executes the InVEST pollination model using the raster from the
+        official NatCap sample data """
+        runner_fn = self.model_runner.execute_model_for_sample_data
+        return self.do_handle_request(runner_fn)
 
     @accept('application/json')
     def pollination(self):
         """ executes the InVEST pollination model and returns the results """
+        runner_fn = self.model_runner.execute_model
+        return self.do_handle_request(runner_fn)
+
+    def do_handle_request(self, runner_fn):
         if not request.is_json:
             raise InvalidUsage("POST body doesn't look like JSON", 415)
         post_body = request.get_json()
-        validate_request(post_body)
+        try:
+            validate_request(post_body)
+        except Exception as e:
+            is_force = request.args.get('force', default=False, type=bool)
+            if is_force:
+                logger.exception('Error during validation but forcing onwards')
+            else:
+                raise e
         years_to_simulate = post_body['years']
         if years_to_simulate > MAX_YEARS_TO_SIMULATE:
             raise InvalidUsage('years param cannot be any larger than %d' %
@@ -233,8 +265,9 @@ class AppBuilder(object):
                 room=socketio_sid)
             self.socketio.sleep(0)  # flush
 
-        result = self.model_runner.execute_model(geojson_farm_vector,
-                                                 years_to_simulate,
-                                                 geojson_reveg_vector,
-                                                 crop_type, mark_year_as_done)
+        result = runner_fn(geojson_farm_vector,
+                           years_to_simulate,
+                           geojson_reveg_vector,
+                           crop_type, mark_year_as_done)
+
         return jsonify(result)
