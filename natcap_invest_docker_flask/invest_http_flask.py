@@ -210,7 +210,6 @@ class AppBuilder(object):
 
     def get_sample_data(self):
         """ gets data the UI needs to run the official NatCap sample data """
-        self.model_runner.run_prep_sample_data_script()
         with open('/data/pollination-sample/ui.json') as f:
             content = f.read()
             resp = Response(content, mimetype='application/json')

@@ -377,8 +377,6 @@ class NatcapModelRunner(object):
         return self._execute_model(create_cropped_raster, *args, **kwargs)
 
     def execute_model_for_sample_data(self, *args, **kwargs):
-        self.run_prep_sample_data_script()
-
         def raster_fn(_, _2):
             # only works in the docker container, because the data comes from
             # the base image.
@@ -448,10 +446,3 @@ class NatcapModelRunner(object):
             shutil.rmtree(workspace_dir)
         logger.debug('execution time %dms' % result['elapsed_ms'])
         return result
-
-    def run_prep_sample_data_script(self):
-        logger.debug('Preparing files needed for run with NatCap sample data')
-        subprocess.check_call([
-            '/app/docker/prep-for-sample-data-run.sh'
-        ],
-            stdout=subprocess.DEVNULL)
