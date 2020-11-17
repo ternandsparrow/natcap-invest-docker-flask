@@ -25,11 +25,21 @@ def map_fields(record, fields):
     return result
 
 
+def biophys_table_parent_of(v):
+    """
+    The SA biophysical landuse table codes are hierarchical. As an example: 111
+    has a parent of 110. This function will take a code and tell you its parent
+    code. There are only two levels, so parents are their own parents.
+    """
+    return v - (v % 10)
+
+
 def fill_in_missing_lulc_rows(biophys_table):
     """
     Makes sure every LULC code has a row.
     Only some LULC codes have pollination value. Rather than storing all the
-    rest as 0s, we generate those rows on the fly.
+    rest as 0s, we generate those rows on the fly. Child rows that don't have
+    an explicit value will inherit from their parent.
     """
     existing_lulc_codes = biophys_table[:, 0]
     extra_codes = []
@@ -37,7 +47,14 @@ def fill_in_missing_lulc_rows(biophys_table):
     for curr in range(max_lulc_code):
         if curr in existing_lulc_codes:
             continue
-        values = [0 for x in range(1, biophys_col_count)]
+        try:
+            parent_code = biophys_table_parent_of(curr)
+            parent_row = [x for x in biophys_table if x[0] == parent_code][0]
+            # inherit parent values
+            values = parent_row.copy()[1:]
+        except IndexError:
+            # no parent row, make it all 0s
+            values = [0 for x in range(1, biophys_col_count)]
         extra_codes.append([curr] + list(values))
     completed_table = np.concatenate((biophys_table, extra_codes), axis=0)
     return completed_table
