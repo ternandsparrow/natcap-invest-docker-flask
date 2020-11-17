@@ -10,7 +10,8 @@ class Test(unittest.TestCase):
         self.assertTrue(object_under_test.is_valid)
 
     def test_loads02(self):
-        """ does a JSON object with an unknown type not really return a GeoJSON object?
-            this is highlight behaviour I don't think is correct, we should always get .is_valid"""
+        """ does a JSON object with an unknown type not really return a GeoJSON
+        object?  this is highlight behaviour I don't think is correct, we
+        should always get .is_valid"""
         object_under_test = geojson.loads(u'{"type":"blah"}')
         self.assertFalse(hasattr(object_under_test, 'is_valid'))

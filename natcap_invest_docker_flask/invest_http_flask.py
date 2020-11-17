@@ -219,16 +219,16 @@ class AppBuilder(object):
     def run_sample(self):
         """ executes the InVEST pollination model using the raster from the
         official NatCap sample data """
-        runner_fn = self.model_runner.execute_model_for_sample_data
         # there will be validation failures for sample data
         self.validate_req(ignore_failure=True)
+        runner_fn = self.model_runner.execute_model_for_sample_data
         return self.do_handle_request(runner_fn)
 
     @accept('application/json')
     def pollination(self):
         """ executes the InVEST pollination model and returns the results """
-        runner_fn = self.model_runner.execute_model
         self.validate_req(ignore_failure=False)
+        runner_fn = self.model_runner.execute_model
         return self.do_handle_request(runner_fn)
 
     def validate_req(self, ignore_failure):

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
 Let's face it, installing the dependencies for natcap is a pain.
-This lets you run the server with a stub impl so you iterate quickly for dev work.
+This lets you run the server with a stub impl so you iterate quickly for dev
+work.
 
 It's executable so just run it.
 """

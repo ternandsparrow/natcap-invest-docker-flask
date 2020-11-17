@@ -109,7 +109,8 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 406)
 
     def test_pollination04(self):
-        """ Do we get the expected 4xx response when we provide post POST body that doesn't validate """
+        """ Do we get the expected 4xx response when we provide post POST body
+        that doesn't validate """
         data = u'{"type":100}'
         result = self.init_test_app().post(
             '/pollination',
@@ -119,7 +120,8 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
 
     def test_pollination05(self):
-        """ Do we get the expected 4xx response when we provide Content-type != application/json """
+        """ Do we get the expected 4xx response when we provide Content-type !=
+        application/json """
         data = u'<blah>Not json</blah>'
         result = self.init_test_app().post(
             '/pollination',
@@ -129,7 +131,8 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 415)
 
     def test_pollination06(self):
-        """ Do we get the expected 4xx response when we don't provide a body """
+        """ Do we get the expected 4xx response when we don't provide a body
+        """
         result = self.init_test_app().post(
             '/pollination',
             content_type='application/json',
@@ -137,7 +140,8 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
 
     def test_pollination07(self):
-        """ Does a valid farm GeoJSON object that is missing the required properties on features fail validation? """
+        """ Does a valid farm GeoJSON object that is missing the required
+        properties on features fail validation? """
         farm_vector_path = os.path.join(os.path.dirname(__file__), '..',
                                         'natcap_invest_docker_flask', 'static',
                                         'example-farm-vector.json')
@@ -155,7 +159,8 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
 
     def test_pollination08(self):
-        """ Do we get the expected 4xx response when we provide post POST body that has a farm field but doesn't validate """
+        """ Do we get the expected 4xx response when we provide post POST body
+        that has a farm field but doesn't validate """
         data = u'{"farm": {"type":100} }'
         result = self.init_test_app().post(
             '/pollination',
@@ -165,9 +170,15 @@ class Test(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
 
     def test_pollination09(self):
-        """ Do we get the expected 4xx response when we supply a 'year' param that's too large """
+        """ Do we get the expected 4xx response when we supply a 'year' param
+        that's too large """
         data = u'{"years":55,"crop_type":"canola","reveg":{},"farm":{}}'
-        result = self.init_test_app().post(
+
+        class Stub:
+            def execute_model(self):
+                raise Exception('should not be called')
+
+        result = self.init_test_app(Stub()).post(
             '/pollination',
             data=data,
             content_type='application/json',
