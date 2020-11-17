@@ -3,7 +3,7 @@ import math
 import multiprocessing
 
 from flask import Flask, jsonify, render_template, request, Response
-from flask.json import loads, dumps
+from flask.json import dumps
 from flask_accept import accept
 from flask_cors import CORS
 from flask_inputs import Inputs
@@ -54,6 +54,9 @@ class InvalidUsage(Exception):
         rv = dict(self.payload or ())
         rv['message'] = self.message
         return rv
+
+    def __str__(self):
+        return self.message
 
 
 def estimate_runtime():
@@ -119,7 +122,7 @@ def validate_request(request_dict, force_crop=False):
                            str(required_keys))
     valid_crop_types = ['apple', 'canola', 'lucerne']
     crop_type = request_dict[crop_type_key]
-    if not crop_type in valid_crop_types:
+    if crop_type not in valid_crop_types:
         raise InvalidUsage('crop_type must be one of: ' +
                            str(valid_crop_types))
     assert_geojson(request_dict['farm'])
@@ -205,7 +208,6 @@ class AppBuilder(object):
         self.app.add_url_rule('/estimate-runtime', view_func=estimate_runtime)
         self.app.add_url_rule('/reveg-curve.png', view_func=reveg_curve_png)
 
-
     def get_sample_data(self):
         """ gets data the UI needs to run the official NatCap sample data """
         self.model_runner.run_prep_sample_data_script()
@@ -219,26 +221,31 @@ class AppBuilder(object):
         """ executes the InVEST pollination model using the raster from the
         official NatCap sample data """
         runner_fn = self.model_runner.execute_model_for_sample_data
+        # there will be validation failures for sample data
+        self.validate_req(ignore_failure=True)
         return self.do_handle_request(runner_fn)
 
     @accept('application/json')
     def pollination(self):
         """ executes the InVEST pollination model and returns the results """
         runner_fn = self.model_runner.execute_model
+        self.validate_req(ignore_failure=False)
         return self.do_handle_request(runner_fn)
 
-    def do_handle_request(self, runner_fn):
+    def validate_req(self, ignore_failure):
         if not request.is_json:
             raise InvalidUsage("POST body doesn't look like JSON", 415)
-        post_body = request.get_json()
         try:
-            validate_request(post_body)
+            validate_request(request.get_json())
         except Exception as e:
-            is_force = request.args.get('force', default=False, type=bool)
-            if is_force:
-                logger.exception('Error during validation but forcing onwards')
+            if ignore_failure:
+                logger.exception('Error during validation but forcing ' +
+                                 'onwards: %s' % str(e))
             else:
                 raise e
+
+    def do_handle_request(self, runner_fn):
+        post_body = request.get_json()
         years_to_simulate = post_body['years']
         if years_to_simulate > MAX_YEARS_TO_SIMULATE:
             raise InvalidUsage('years param cannot be any larger than %d' %

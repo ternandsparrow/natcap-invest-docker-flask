@@ -14,7 +14,7 @@ def map_reveg_feature(f):
     first_three = coords[:3]
     # it's not awesome but it *does* avoid hardcoding
     triangle = first_three + first
-    f['geometry']['coordinates'] = triangle
+    f['geometry']['coordinates'] = [triangle]
     return f
 
 def doit(accum, curr):

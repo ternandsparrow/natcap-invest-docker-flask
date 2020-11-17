@@ -29,8 +29,13 @@ for curr in almonds blueberries; do
     /data/pollination-sample/guild_table.csv \
     ./docker/guild_table/$curr.csv
   echo "$curr: farm attributes"
-  ogr2ogr -f csv /vsistdout/ $farmShp | \
-    grep $curr > ./docker/farm_attribute_table/$curr.csv
+  tmpFat=`mktemp`
+  ogr2ogr -f csv /vsistdout/ $farmShp > $tmpFat
+  rmCropType="cut -d, -f1 --complement"
+  # write header
+  head -n 1 $tmpFat | $rmCropType   > ./docker/farm_attribute_table/$curr.csv
+  # write data rows
+  grep $curr $tmpFat | $rmCropType >> ./docker/farm_attribute_table/$curr.csv
   echo "$curr: LULC table"
   ln --symbolic --force \
     $tmpLulc ./docker/landcover_biophysical_table/$curr.csv

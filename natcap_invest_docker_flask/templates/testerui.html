@@ -159,16 +159,18 @@
                   natcap software and use it to run through our framework. This
                   will clobber the data in the input fields below. The reveg is
                   dynamically generated as a triangle based on the first three
-                  points, so you might want to tweak that.</p>
+                  points. This isn't amazing so you might want to tweak that.
+                  GeoJSON.io might not be able to deal with the different CRS
+                  that the sample data uses.</p>
                   <p>First, load the available sample data from the server.
                   Then choose a crop to load the GeoJSON into the inputs.</p>
                   <p>
                   <button ng-click="getSampleData()">
-                    1. Get NatCap official sample data
+                    Get NatCap official sample data
                   </button>
                   </p>
                   <p>
-                  <button ng-repeat="curr in sampleDataCropsKeys"
+                  <button ng-repeat="curr in sampleDataCropsKeys()"
                     ng-click="loadSampleData(curr)">
                     Load geojson for {{curr}}</button>
                   </p>
@@ -374,12 +376,11 @@
         };
         $scope.sampleDataCrops = {}
         $scope.sampleDataCropsKeys = function () {
-          return Object.keys($scope.sampleDataCrops)
+          return Object.keys($scope.sampleDataCrops || {})
         }
         $scope.getSampleData = function () {
           $http.get(url("/get-sample-data")).then(resp => {
             $scope.sampleDataCrops = resp.data
-            $scope.sampleDataCropsKeys = Object.keys(resp.data)
           })
         }
         $scope.loadSampleData = function (cropName) {
@@ -405,7 +406,9 @@
             reveg: JSON.parse($scope.revegVector),
             socketio_sid: socket.id,
           };
-          return $http.post(url("/pollination"), postBody).then(
+          const isSampleDataRun = $scope.sampleDataCropsKeys().includes($scope.cropType)
+          const theUrl = isSampleDataRun ? '/run-sample' : '/pollination'
+          return $http.post(url(theUrl), postBody).then(
             function (resp) {
               $scope.isExecutingModel = false;
               $scope.resultTable = resp.data.records;

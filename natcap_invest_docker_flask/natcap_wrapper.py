@@ -196,35 +196,36 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector,
         data = f.read()
     with open(result_path, 'wb') as f:
         f.write(data)
-    reveg_vector_path = os.path.join(year_workspace_dir_path,
-                                     KNOWN_LAYER_NAME + '.json')
-    with open(reveg_vector_path, 'w') as f:
-        f.write(dumps(reveg_vector))
     reprojected_reveg_vector_path = reproject_geojson_to_epsg3107(
-        year_workspace_dir_path, reveg_vector_path)
+        year_workspace_dir_path, reveg_vector)
     # feel the burn!
     subprocess.check_call([
-            '/usr/bin/gdal_rasterize', '-burn',
-            str(reveg_lucode), '-l', KNOWN_LAYER_NAME,
-            reprojected_reveg_vector_path, result_path
-        ],
+        '/usr/bin/gdal_rasterize', '-burn',
+        str(reveg_lucode), '-l', KNOWN_LAYER_NAME,
+        reprojected_reveg_vector_path, result_path
+    ],
         stdout=subprocess.DEVNULL)
     return result_path
 
 
-def reproject_geojson_to_epsg3107(workspace_dir_path, geojson_path):
+def reproject_geojson_to_epsg3107(workspace_dir_path, reveg_geojson):
+    reveg_vector_path = os.path.join(workspace_dir_path,
+                                     KNOWN_LAYER_NAME + '.json')
+    with open(reveg_vector_path, 'w') as f:
+        f.write(dumps(reveg_geojson))
     result_path = os.path.join(workspace_dir_path, reproj_reveg_filename)
+    crs = get_crs_from_geojson(reveg_geojson)
     subprocess.check_call(
         [
             '/usr/bin/ogr2ogr',
             '-s_srs',
-            'EPSG:4326',  # assuming no CRS so WGS84 is implied
+            crs,
             '-t_srs',
             'EPSG:3107',
             '-f',
             'GeoJSON',
             result_path,
-            geojson_path
+            reveg_vector_path
         ],
         stdout=subprocess.DEVNULL)
     return result_path
@@ -323,6 +324,8 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
     shapefile_path = os.path.join(workspace_dir, filename_fragment + u'.shp')
     geojson_path = os.path.join(workspace_dir, filename_fragment + u'.json')
     attr_table_rows = load_farm_attributes(crop_type)
+    if len(attr_table_rows) < 1:
+        logger.warn('No farm attribute rows found for crop %s' % crop_type)
     baked_geojson_vector = {'type': 'FeatureCollection', 'features': []}
     for curr_attr_row in attr_table_rows:
         # merge all the features into a multipolygon so we get a single result
@@ -341,13 +344,14 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
         }
         multipolygon['properties']['crop_type'] = crop_type
         baked_geojson_vector['features'].append(copy.deepcopy(multipolygon))
+    crs = get_crs_from_geojson(geojson_vector_from_user)
     with open(geojson_path, 'w') as f:
         f.write(dumps(baked_geojson_vector))
     subprocess.check_call(
         [
             '/usr/bin/ogr2ogr',
             '-s_srs',
-            'EPSG:4326',  # assume input geojson has no CRS, WGS84 is implied
+            crs,
             '-t_srs',
             'EPSG:3107',
             '-f',
@@ -359,6 +363,15 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
     return shapefile_path
 
 
+def get_crs_from_geojson(the_geojson):
+    try:
+        result = the_geojson['crs']['properties']['name']
+        logger.debug('Using CRS from user input: %s' % result)
+        return result
+    except KeyError:
+        return 'EPSG:4326'
+
+
 class NatcapModelRunner(object):
     def execute_model(self, *args, **kwargs):
         return self._execute_model(create_cropped_raster, *args, **kwargs)
@@ -367,9 +380,9 @@ class NatcapModelRunner(object):
         self.run_prep_sample_data_script()
 
         def raster_fn(_, _2):
-            # only works in the docker container, because that's where the data
-            # comes from.
-            return 'u/data/pollination-sample/landcover.tif'
+            # only works in the docker container, because the data comes from
+            # the base image.
+            return u'/data/pollination-sample/landcover.tif'
         return self._execute_model(raster_fn, *args, **kwargs)
 
     def _execute_model(self, landcover_raster_cropper_fn, geojson_farm_vector,
@@ -439,6 +452,6 @@ class NatcapModelRunner(object):
     def run_prep_sample_data_script(self):
         logger.debug('Preparing files needed for run with NatCap sample data')
         subprocess.check_call([
-                '/app/docker/prep-for-sample-data-run.sh'
-            ],
+            '/app/docker/prep-for-sample-data-run.sh'
+        ],
             stdout=subprocess.DEVNULL)

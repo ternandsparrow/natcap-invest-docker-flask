@@ -44,6 +44,8 @@ schema = {
                     "$id": "/properties/farm/properties/type",
                     "type": "string"
                 },
+                # TODO support supplying a CRS. Our code supports it but only
+                # to run the official NatCap sample data. Also add it for reveg.
                 "features": {
                     "$id": "/properties/farm/properties/features",
                     "type": "array",
