@@ -19,12 +19,13 @@ export SOCKETIO_SECRET=${SOCKETIO_SECRET:-`uuidgen`}
 
 isLocalDevMode=`[ ! -z "${LOCAL_DEV:-}" ]`
 
+dc='docker-compose'
 if $isLocalDevMode; then
-  DC_OVERRIDE_FRAGMENT='--file docker-compose.yml --file docker-compose.local-dev.yml'
+  dc="$dc --file docker-compose.yml --file docker-compose.local-dev.yml"
 fi
 
 echo "[INFO] $(date) - starting stack"
-docker-compose ${DC_OVERRIDE_FRAGMENT:-} up -d $@
+$dc up -d $@
 
 if $isLocalDevMode; then
   cat <<EOF
@@ -38,9 +39,8 @@ if $isLocalDevMode; then
    inspect the /workspace files with your web browser.
 EOF
   docker exec -it natcap bash
-  echo "[INFO] you've left the container but the stack is still running. To "
-  echo "       kill it, run:"
-  echo "  docker-compose down --volumes --remove-orphans"
+  echo "[INFO] killing the stack for you"
+  $dc down --volumes
 else
   echo "[INFO] stack started"
 fi
