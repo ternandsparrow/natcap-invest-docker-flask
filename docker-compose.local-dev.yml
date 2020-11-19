@@ -21,7 +21,7 @@ services:
     ports:
       - '${FILES_PORT:-5001}:80'
     volumes:
-      - natcap-workspace:/workspace:ro
+      - natcap-workspace:/workspace
     logging:
       driver: "json-file"
       options:
