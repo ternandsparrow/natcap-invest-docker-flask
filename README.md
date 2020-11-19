@@ -1,7 +1,10 @@
 # natcap-invest-docker-flask
 
 HTTP wrapper around [NatCap's
-InVEST](https://pypi.python.org/pypi/natcap.invest) using Flask.
+InVEST](https://pypi.python.org/pypi/natcap.invest) using Flask. Specifically it
+builds on [this](https://github.com/ternandsparrow/natcap-invest-docker) base
+image. The landcover raster comes from
+[here](https://github.com/ternandsparrow/landuse-raster-south-australia).
 
 Specifically we've focused on the pollination model at this stage, because
 that's what we need.
