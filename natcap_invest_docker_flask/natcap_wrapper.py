@@ -32,7 +32,7 @@ logging.getLogger('natcap').setLevel(logging.WARN)
 logging.getLogger('taskgraph').setLevel(logging.WARN)
 logging.getLogger('pygeoprocessing').setLevel(logging.WARN)
 
-metres_of_padding_for_farm = int(os.getenv('FARM_PADDING_METRES', 3000))
+metres_of_padding_for_farm = int(os.getenv('FARM_PADDING_METRES', 1500))
 logger.info('Using farm padding of %d metres' % metres_of_padding_for_farm)
 is_purge_workspace = bool(int(os.getenv('PURGE_WORKSPACE', 1)))
 logger.info('Purge workspace after run = %s' % is_purge_workspace)

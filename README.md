@@ -69,7 +69,7 @@ to the `docker run` command.
 
 | key |value type | default value | description |
 | --- |---------- | ------------- | ----------- |
-|`FARM_PADDING_METRES`|integer|3000| padding, in metres, used when cropping the raster around the farm vector. Smaller values mean faster runs but if you go too small, it'll negatively affect results as there's not enough raster around the farm to calculate wild pollination values. |
+|`FARM_PADDING_METRES`|integer|1500| padding, in metres, used when cropping the raster around the farm vector. Smaller values mean faster runs. Be sure to make it larger than the max `alpha` value in your guild tables. |
 |`PURGE_WORKSPACE`|0 or 1|1 (True)|controls if the temporary workspace on disk is completely purged after each run. Each request is stateless/self-contained so the only reason to keep the workspace is for debugging reasons.|
 
 Then you can make a call to the server like this:
