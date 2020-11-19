@@ -1,0 +1,28 @@
+version: '3.7'
+services:
+  natcap:
+    entrypoint: bash -c 'sleep 9999999999999'
+    environment:
+      PURGE_WORKSPACE: 0 # don't purge
+    volumes:
+      - natcap-workspace:/workspace
+      - .:/app
+
+  files_ls:
+    image: caddy:2-alpine
+    container_name: natcap_caddy
+    working_dir: /workspace
+    entrypoint: caddy file-server -listen :80 -browse
+    restart: 'no'
+    init: true
+    ports:
+      - '${FILES_PORT:-5001}:80'
+    volumes:
+      - natcap-workspace:/workspace
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+
+volumes:
+  natcap-workspace:

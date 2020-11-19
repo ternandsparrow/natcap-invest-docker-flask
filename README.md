@@ -34,9 +34,9 @@ version}`, for example `1.2.2_3.8.9`.
 ## Running it
 
 This is a docker image and it's built on DockerHub, so to run on a host all you
-need is to grab the runner script from this repo (you don't need to whole repo)
-and a host with docker installed. It will pull the image when you run the
-script.
+need is to grab the runner script and docker-compose file(s) from this repo (you
+don't need to whole repo) and a host with docker installed. It will pull the
+image when you run the script.
 
   1. get the runner script
       ```bash
@@ -44,7 +44,8 @@ script.
       cd natcap-invest-docker-flask
       cp run-container.sh.example run-container.sh
       # OR, pull direct from GitHub
-      curl -L https://github.com/ternandsparrow/natcap-invest-docker-flask/raw/master/run-container.sh.example > run-container.sh
+      wget https://github.com/ternandsparrow/natcap-invest-docker-flask/raw/master/{run-container.sh.example,docker-compose.yml,docker-compose.local-dev.yml}
+      mv run-container.sh.example run-container.sh
       ```
   1. make it executable
       ```bash
@@ -68,7 +69,7 @@ to the `docker run` command.
 |`FARM_PADDING_METRES`|integer|3000| padding, in metres, used when cropping the raster around the farm vector. Smaller values mean faster runs but if you go too small, it'll negatively affect results as there's not enough raster around the farm to calculate wild pollination values. |
 |`PURGE_WORKSPACE`|0 or 1|1 (True)|controls if the temporary workspace on disk is completely purged after each run. Each request is stateless/self-contained so the only reason to keep the workspace is for debugging reasons.|
 
-Then you can use it like this:
+Then you can make a call to the server like this:
 ```bash
 curl localhost:5000/ # get available links, just a healthcheck really
 # change to a dir where we can use the example payloads

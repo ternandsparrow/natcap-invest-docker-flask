@@ -1,57 +1,46 @@
 #!/bin/bash
 # starts/restarts our container
-# You don't need the code locally, you can just deploy this script to a host
-# with docker and run it. Purposely built to be editable so you just run the
-# script and all your settings are still intact. If we accepted params, you
-# might forget to pass them on subsequent runs and accidentally run in dev mode
-# instead of prod, etc.
+# In local dev mode we also
+#  - create a static file server so it's easier to get the workspace files
+#  - set the flag so workspace files are NOT purged after a run
 set -euo pipefail
+cd `dirname "$0"`
 
-name=natcap
-hostPort=5000
+# you can change the bound host ports
+export NATCAP_PORT=5000
+export FILES_PORT=5001
 
 # TODO change this to the Docker image tag you want to run
-dockerTag=`git tag | tail -n 1`
+export NATCAP_TAG=`git tag | tail -n 1`
 
 # uncomment the following for a production deploy
-#theEnv=production
-#restartPolicy=unless-stopped
-socketioSecret=${SOCKETIO_SECRET:-`uuidgen`}
+# export NIDF_ENV=production
+export SOCKETIO_SECRET=${SOCKETIO_SECRET:-`uuidgen`}
 
-existingContainerId=`docker ps -a -q -f name="^${name}$"`
-if [ ! -z "$existingContainerId" ]; then
-  echo "[INFO] killing existing container $existingContainerId"
-  docker rm -f $name > /dev/null
+isLocalDevMode=`[ ! -z "${LOCAL_DEV:-}" ]`
+
+if $isLocalDevMode; then
+  DC_OVERRIDE_FRAGMENT='--file docker-compose.yml --file docker-compose.local-dev.yml'
 fi
 
-detach='--detach'
+echo "[INFO] $(date) - starting stack"
+docker-compose ${DC_OVERRIDE_FRAGMENT:-} up -d $@
 
-if [ ! -z "${LOCAL_DEV:-}" ]; then
-  dontPurge=0 # keeps outputs in work dir after run
-  detach='-it'
-  fragment="-v $(pwd):/app --entrypoint bash -e PURGE_WORKSPACE=$dontPurge"
+if $isLocalDevMode; then
   cat <<EOF
 [INFO] you're in local dev mode so we've dropped you to a shell.
  - Start the app with ./docker/run.sh.
- - You can also Ctrl-c back to this shell and inspect the output files in
+ - You can Ctrl-c back to this shell and inspect the output files in
    /workspace.
  - Add the code 'import pdb; pdb.set_trace()' in the source to trigger the
    python debugger in here.
- - If running the official NatCap sample data, our setuid magic breaks down in
-   this "local dev" env. To fix this, run in a separate terminal:
-      docker exec -it --user 0 natcap bash # start a root shell
-      ./docker/prep-for-sample-data-run.sh # run the prep
-   ...then you can come back here and carry on without error.
+ - A static file server is running on http://localhost:${FILES_PORT} so you can
+   inspect the /workspace files with your web browser.
 EOF
+  docker exec -it natcap bash
+  echo "[INFO] you've left the container but the stack is still running. To "
+  echo "       kill it, run:"
+  echo "  docker-compose down --volumes --remove-orphans"
+else
+  echo "[INFO] stack started"
 fi
-
-echo "[INFO] starting container"
-docker run \
-  $detach \
-  --name=$name \
-  -p $hostPort:5000 \
-  -e NIDF_ENV=${NIDF_ENV:-development} \
-  -e SOCKETIO_SECRET=${socketioSecret} \
-  --restart=${restartPolicy:-no} \
-  ${fragment:-} \
-  ternandsparrow/natcap-invest-docker-flask:$dockerTag
