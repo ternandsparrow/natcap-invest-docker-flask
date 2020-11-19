@@ -12,13 +12,16 @@ services:
     image: caddy:2-alpine
     container_name: natcap_caddy
     working_dir: /workspace
-    entrypoint: caddy file-server -listen :80 -browse
+    # sometimes docker doesn't keep the /workspace owner, so we'll get heavy
+    # handed about it!
+    entrypoint: sh -c 'chown 999:999 /workspace && 
+                       caddy file-server -listen :80 -browse'
     restart: 'no'
     init: true
     ports:
       - '${FILES_PORT:-5001}:80'
     volumes:
-      - natcap-workspace:/workspace
+      - natcap-workspace:/workspace:ro
     logging:
       driver: "json-file"
       options:
