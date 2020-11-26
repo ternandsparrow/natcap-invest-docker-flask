@@ -204,6 +204,11 @@
                   <label for="inputRevegVector" style="margin-right: 2em;"
                     >Revegetation Vector (GeoJSON):</label
                   >
+                  <p>
+                    Set as <input type="number" ng-model="revegPct" />
+                    percent of the farm vector.
+                    <button ng-click="setRevegPct()">Set reveg vector</button>
+                  </p>
                   <textarea
                     ng-model="revegVector"
                     id="inputRevegVector"
@@ -327,6 +332,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-loading-bar/0.9.0/loading-bar.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.7.1/angular-local-storage.min.js"></script>
+    <script src='https://unpkg.com/@turf/turf/turf.min.js'></script>
     <script type="text/javascript">
       var socket = io();
       socket.on("connect", function () {
@@ -368,6 +374,7 @@
         $scope.revegVector = `{j{example_reveg_vector|safe}j}`;
         $scope.cropType = "apple";
         $scope.yearsToSimulate = 3;
+        $scope.revegPct = 2;
         $scope.runtimeEstimate = "about 15";
         $scope.processedYears = 0;
         $scope.totalYearsToProcess = function () {
@@ -388,6 +395,12 @@
           $scope.farmVector = JSON.stringify(found.farm, null, 2)
           $scope.revegVector = JSON.stringify(found.reveg, null, 2)
           $scope.cropType = cropName
+        }
+        $scope.setRevegPct = function() {
+          const pct = $scope.revegPct
+          const scaleFactor = Math.sqrt(pct / 100)
+          const scaled = turf.transformScale(JSON.parse($scope.farmVector), scaleFactor)
+          $scope.revegVector = JSON.stringify(scaled, null, 2)
         }
         socket.on("year-complete", function (payload) {
           console.log("Marking another year as done", payload);
