@@ -19,7 +19,7 @@ import numpy as np
 from flask.json import dumps
 
 from natcap_invest_docker_flask.helpers import \
-    get_records, biophys_col_count, fill_in_and_write
+    get_records, biophys_col_count, fill_in_and_write, subtract_reveg_from_farm
 from natcap_invest_docker_flask.logger import logger_getter
 from reveg_alg.alg import get_values_for_year
 
@@ -215,18 +215,10 @@ def reproject_geojson_to_epsg3107(workspace_dir_path, reveg_geojson):
         f.write(dumps(reveg_geojson))
     result_path = os.path.join(workspace_dir_path, reproj_reveg_filename)
     crs = get_crs_from_geojson(reveg_geojson)
-    subprocess.check_call(
-        [
-            '/usr/bin/ogr2ogr',
-            '-s_srs',
-            crs,
-            '-t_srs',
-            'EPSG:3107',
-            '-f',
-            'GeoJSON',
-            result_path,
-            reveg_vector_path
-        ],
+    subprocess.check_call([
+        '/usr/bin/ogr2ogr', '-s_srs', crs, '-t_srs', 'EPSG:3107', '-f',
+        'GeoJSON', result_path, reveg_vector_path
+    ],
         stdout=subprocess.DEVNULL)
     return result_path
 
@@ -347,18 +339,10 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
     crs = get_crs_from_geojson(geojson_vector_from_user)
     with open(geojson_path, 'w') as f:
         f.write(dumps(baked_geojson_vector))
-    subprocess.check_call(
-        [
-            '/usr/bin/ogr2ogr',
-            '-s_srs',
-            crs,
-            '-t_srs',
-            'EPSG:3107',
-            '-f',
-            'ESRI Shapefile',
-            shapefile_path,
-            geojson_path
-        ],
+    subprocess.check_call([
+        '/usr/bin/ogr2ogr', '-s_srs', crs, '-t_srs', 'EPSG:3107', '-f',
+        'ESRI Shapefile', shapefile_path, geojson_path
+    ],
         stdout=subprocess.DEVNULL)
     return shapefile_path
 
@@ -381,6 +365,7 @@ class NatcapModelRunner(object):
             # only works in the docker container, because the data comes from
             # the base image.
             return u'/data/pollination-sample/landcover.tif'
+
         return self._execute_model(raster_fn, *args, **kwargs)
 
     def _execute_model(self, landcover_raster_cropper_fn, geojson_farm_vector,
@@ -388,13 +373,13 @@ class NatcapModelRunner(object):
                        mark_year_as_done_fn):
         start_ms = now_in_ms()
         workspace_dir = workspace_path(generate_unique_token())
-        logger.debug('using workspace dir "%s"' % workspace_dir)
+        logger.debug(f'using workspace dir "{workspace_dir}"')
         os.mkdir(workspace_dir)
         farm_vector_path = transform_geojson_to_shapefile(
             geojson_farm_vector, farm_layer_and_file_name, workspace_dir,
             crop_type)
-        landcover_raster_path = landcover_raster_cropper_fn(farm_vector_path,
-                                                            workspace_dir)
+        landcover_raster_path = landcover_raster_cropper_fn(
+            farm_vector_path, workspace_dir)
 
         # we use a pool so we can limit the number of concurrent processes. If
         # we just create processes we would either need to manage what's
@@ -410,12 +395,15 @@ class NatcapModelRunner(object):
             pool.apply_async(run_year0,
                              (farm_vector_path, landcover_raster_path,
                               workspace_dir, output, crop_type)))
+        farm_vector_minus_reveg_path = subtract_reveg_from_farm(
+            geojson_farm_vector, geojson_reveg_vector)
         for curr_year in range(1, years_to_simulate + 1):
             processes.append(
                 pool.apply_async(
                     run_future_year,
-                    (farm_vector_path, landcover_raster_path, workspace_dir,
-                     curr_year, geojson_reveg_vector, output, crop_type)))
+                    (farm_vector_minus_reveg_path, landcover_raster_path,
+                     workspace_dir, curr_year, geojson_reveg_vector, output,
+                     crop_type)))
         queue_results = []
         pool.close()
         # we don't pool.join(), instead we block on the results in the queue so

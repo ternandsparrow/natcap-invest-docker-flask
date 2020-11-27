@@ -254,7 +254,7 @@ class AppBuilder(object):
         log_geojson(geojson_farm_vector, 'farm')
         geojson_reveg_vector = post_body['reveg']
         # TODO validate the reveg vector is in an appropriate location compared
-        # with the farm. Probably within a few kms is good enough
+        # with the farm. It should be *in* the farm for our use case.
         log_geojson(geojson_reveg_vector, 'reveg')
         crop_type = post_body[crop_type_key]
         try:
@@ -271,9 +271,7 @@ class AppBuilder(object):
                 room=socketio_sid)
             self.socketio.sleep(0)  # flush
 
-        result = runner_fn(geojson_farm_vector,
-                           years_to_simulate,
-                           geojson_reveg_vector,
-                           crop_type, mark_year_as_done)
+        result = runner_fn(geojson_farm_vector, years_to_simulate,
+                           geojson_reveg_vector, crop_type, mark_year_as_done)
 
         return jsonify(result)

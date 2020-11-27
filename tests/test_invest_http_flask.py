@@ -5,7 +5,8 @@ import logging
 from flask.json import loads, dumps
 
 from .context import natcap_invest_docker_flask
-from natcap_invest_docker_flask.invest_http_flask import logger as object_under_test_logger
+from natcap_invest_docker_flask.invest_http_flask \
+        import logger as object_under_test_logger
 
 object_under_test_logger.setLevel(
     logging.INFO)  # we don't need our console flooded

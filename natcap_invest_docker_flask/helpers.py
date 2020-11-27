@@ -1,5 +1,6 @@
 """ Stuff that is easier to unit test without all the other dependencies """
 import numpy as np
+from shapely.geometry import mapping, shape
 
 biophys_col_count = 5  # ignore LU_DESCRIP and comment cols
 
@@ -69,12 +70,44 @@ def fill_in_and_write(biophys_table, file_path):
     completed_table = fill_in_missing_lulc_rows(biophys_table)
     # TODO perhaps should read this header from the CSV file(s)
     header = ','.join([
-        'lucode',
-        'nesting_cavity_availability_index',
-        'nesting_ground_availability_index',
-        'floral_resources_spring_index',
+        'lucode', 'nesting_cavity_availability_index',
+        'nesting_ground_availability_index', 'floral_resources_spring_index',
         'floral_resources_summer_index'
     ])
     format_template = ','.join(['%g' for x in range(biophys_col_count)])
-    np.savetxt(file_path, completed_table, fmt=format_template,
-               header=header, comments='')
+    np.savetxt(file_path,
+               completed_table,
+               fmt=format_template,
+               header=header,
+               comments='')
+
+
+def feature_collection_to_multipolygon(f_coll):
+    # shapely can't deal with Feature{Collection}s. At least with our tooling
+    # and for our use case, I think a FeatureCollection *is* basically a
+    # MultiPolygon, and shapely *does* handle them :D
+    coords = []
+    for curr_feat in f_coll['features']:
+        the_type = curr_feat['geometry']['type']
+        if the_type != 'Polygon':
+            raise ValueError(
+                f'Cannot handle {the_type}, only Polygon supported')
+        coords.append(curr_feat['geometry']['coordinates'])
+    return {'type': 'MultiPolygon', 'coordinates': coords}
+
+
+def subtract_reveg_from_farm(farm_geojson, reveg_geojson):
+    farm_shape = shape(feature_collection_to_multipolygon(farm_geojson))
+    reveg_shape = shape(feature_collection_to_multipolygon(reveg_geojson))
+    diffd = farm_shape.difference(reveg_shape)
+    diffd_geojson = mapping(diffd)
+    result = {
+        "type":
+        "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {},
+            "geometry": diffd_geojson
+        }]
+    }
+    return result

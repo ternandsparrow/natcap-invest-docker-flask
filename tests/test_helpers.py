@@ -45,10 +45,9 @@ class Test(unittest.TestCase):
             for curr_col_index in range(len(curr_row)):
                 curr_col = curr_row[curr_col_index]
                 self.assertEqual(
-                    result[curr_row_index][curr_col_index],
-                    curr_col,
-                    'row=%d, col=%d, val=%s is not equal'
-                    % (curr_row_index, curr_col_index, curr_col))
+                    result[curr_row_index][curr_col_index], curr_col,
+                    'row=%d, col=%d, val=%s is not equal' %
+                    (curr_row_index, curr_col_index, curr_col))
         # make sure generated rows are as expected
         for curr_row_index in range(len(bp_table), len(result)):
             curr_row = result[curr_row_index]
@@ -59,8 +58,8 @@ class Test(unittest.TestCase):
                 try:
                     parent_code = objectundertest.helpers.biophys_table_parent_of(
                         code)
-                    parent_row = [
-                        x for x in bp_table if x[0] == parent_code][0]
+                    parent_row = [x for x in bp_table
+                                  if x[0] == parent_code][0]
                     # should match the values for the parent
                     self.assertEqual(col_val, parent_row[curr_col_index])
                 except IndexError:
@@ -105,10 +104,50 @@ class Test(unittest.TestCase):
         outfile.seek(0)
         result = outfile.read()
         expected = \
-            'lucode,nesting_cavity_availability_index,nesting_ground_availability_index,floral_resources_spring_index,floral_resources_summer_index\n' + \
+            'lucode,nesting_cavity_availability_index,' + \
+            'nesting_ground_availability_index,' + \
+            'floral_resources_spring_index,floral_resources_summer_index\n' + \
             '110,0.9,0.7,1,0.4\n' + \
             '130,0.6,0.5,0.5,0.3\n' + \
             '210,0.7,0.1,0.1,0.2\n' + \
             '1337,0.1,0.7,0,0\n' + \
             '0,0,0,0,0\n'
         self.assertEqual(result[:len(expected)], expected)
+
+    def test_subtract_reveg_from_farm(self):
+        """ can we chop the reveg out of the farm vector? """
+        farm = make_feature_collection([[
+            [0, 0],
+            [2, 0],
+            [2, 2],
+            [0, 2],
+            [0, 0],
+        ]])
+        reveg = make_feature_collection([[
+            # chops off the right half of the farm
+            [1, 0],
+            [2, 0],
+            [2, 2],
+            [1, 2],
+            [1, 0],
+        ]])
+        result = objectundertest.subtract_reveg_from_farm(farm, reveg)
+        self.assertEqual(
+            result,
+            make_feature_collection((((1.0, 0.0), (0.0, 0.0), (0.0, 2.0),
+                                      (1.0, 2.0), (1.0, 0.0)), )))
+
+
+def make_feature_collection(coords):
+    return {
+        "type":
+        "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": coords
+            }
+        }]
+    }
