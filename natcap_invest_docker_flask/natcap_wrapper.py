@@ -20,7 +20,8 @@ import numpy as np
 from flask.json import dumps
 
 from natcap_invest_docker_flask.helpers import \
-    get_records, biophys_col_count, fill_in_and_write, subtract_reveg_from_farm
+    get_records, biophys_col_count, fill_in_and_write, \
+    subtract_reveg_from_farm, append_to_2d_np
 from natcap_invest_docker_flask.logger import logger_getter
 from reveg_alg.alg import get_values_for_year
 
@@ -83,16 +84,31 @@ def generate_unique_token():
     return '%d_%s' % (now_in_ms(), uuid.uuid4())
 
 
-def get_reveg_biophysical_table_row_for_year(year):
+def get_reveg_biophysical_table_row_for_year(year, existing_bp_table):
     val = get_values_for_year(year)
-    logger.debug('[year %d] biophys table reveg row is %s' % (year, val))
-    return [[
+    prefix = 'fr_'
+    fr_cols = filter(lambda x: x.startswith(prefix), val.keys())
+    for curr in list(fr_cols):
+        season = curr.replace(prefix, '')
+        try:
+            key = f'floral_resources_{season}_index'
+            existing_bp_table[key]
+            fr_season_col_val = val[curr]
+            # continue so we delete the other values
+        except ValueError:
+            # purely so we can have nice, named debug output
+            del val[curr]
+            continue
+    if not fr_season_col_val:
+        raise ValueError('Programmer error: could not find a ' +
+                         f'{prefix} col value')
+    logger.debug(f'[year {year}] biophys table reveg row is {val}')
+    return [
         reveg_lucode,
         val['nesting_cavity'],
         val['nesting_ground'],
-        val['fr_spring'],
-        val['fr_summer'],
-    ]]
+        fr_season_col_val,
+    ]
 
 
 def run_natcap_pollination(farm_vector_path, landcover_biophysical_table_path,
@@ -128,8 +144,8 @@ def append_records(record_collector, new_records, year_number):
 
 def read_biophys_table_from_file(file_path):
     return np.genfromtxt(file_path,
-                         skip_header=1,
                          delimiter=',',
+                         names=True,
                          usecols=range(biophys_col_count))
 
 
@@ -138,7 +154,8 @@ def debug_dump_bp_table(bp_table, year_num):
         return
     # thanks https://stackoverflow.com/a/2891805/1410035
     with np.printoptions(precision=5, suppress=True):
-        logger.debug('[year %d] biophys table:\n%s' % (year_num, bp_table))
+        header = bp_table.dtype.names
+        logger.debug(f'[year {year_num}] biophys table:\n{header}\n{bp_table}')
 
 
 def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
@@ -191,13 +208,9 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
 
 def build_biophys_table(crop_type, year_number):
     base_landcover_bp_table_path = landcover_biophys_table_path(crop_type)
-    bp_table = np.genfromtxt(base_landcover_bp_table_path,
-                             skip_header=1,
-                             delimiter=',',
-                             usecols=range(biophys_col_count))
-    reveg_row = get_reveg_biophysical_table_row_for_year(year_number)
-    result = np.concatenate((bp_table, reveg_row), axis=0)
-    return result
+    bp_table = read_biophys_table_from_file(base_landcover_bp_table_path)
+    reveg_row = get_reveg_biophysical_table_row_for_year(year_number, bp_table)
+    return append_to_2d_np(bp_table, reveg_row)
 
 
 def burn_reveg_on_raster(year0_raster_path, reveg_vector,
@@ -343,6 +356,8 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
                 'type':
                 'MultiPolygon',
                 'coordinates': [
+                    # note: we don't support MultiPolygons from the user. We
+                    # could but our use case doesn't require it.
                     x['geometry']['coordinates']
                     for x in geojson_vector_from_user['features']
                 ]

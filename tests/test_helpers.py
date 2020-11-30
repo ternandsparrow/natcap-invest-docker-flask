@@ -31,11 +31,11 @@ class Test(unittest.TestCase):
     def test_fill_in_missing_lulc_rows01(self):
         """ can we add in all the missing LULC code rows """
         bp_table = np.array([
-            [110, 0.9, 0.7, 1.0, 0.4],
-            [130, 0.6, 0.5, 0.5, 0.3],
-            [210, 0.7, 0.1, 0.1, 0.2],
-            [1337, 0.1, 0.7, 0.0, 0.0],
-        ])
+            (110, 0.9, 0.7, 0.4),
+            (130, 0.6, 0.5, 0.3),
+            (210, 0.7, 0.1, 0.2),
+            (1337, 0.1, 0.7, 0.0),
+        ], dtype=[('lucode', int), ('a', float), ('b', float), ('c', float)])
         result = objectundertest.fill_in_missing_lulc_rows(bp_table)
         reveg_row = 1
         self.assertEqual(len(result), 699 + reveg_row)
@@ -61,7 +61,8 @@ class Test(unittest.TestCase):
                     parent_row = [x for x in bp_table
                                   if x[0] == parent_code][0]
                     # should match the values for the parent
-                    self.assertEqual(col_val, parent_row[curr_col_index])
+                    self.assertEqual(col_val, parent_row[curr_col_index],
+                                     msg=f'for row {curr_row}')
                 except IndexError:
                     # no parent row, should be all 0s
                     self.assertEqual(col_val, 0)
@@ -91,27 +92,37 @@ class Test(unittest.TestCase):
         result = objectundertest.helpers.biophys_table_parent_of(0)
         self.assertEqual(result, 0)
 
+    def test_append_to_2d_array01(self):
+        """ can we append a single row """
+        bp_table = np.array([
+            (110, 0.9, 0.7, 0.4),
+            (1337, 0.1, 0.7, 0.0),
+        ], dtype=[('lucode', int), ('a', float), ('b', float), ('c', float)])
+        row = [117] + [0, 0, 0]
+        result = objectundertest.helpers.append_to_2d_np(bp_table, row)
+        self.assertEqual(len(bp_table), 2)
+        self.assertEqual(len(result), 3)
+        self.assertTupleEqual(tuple(result[2]), (117, 0, 0, 0))
+
     def test_fill_in_and_write01(self):
         """ can we write the biophys table CSV """
         bp_table = np.array([
-            [110, 0.9, 0.7, 1.0, 0.4],
-            [130, 0.6, 0.5, 0.5, 0.3],
-            [210, 0.7, 0.1, 0.1, 0.2],
-            [1337, 0.1, 0.7, 0.0, 0.0],
-        ])
+            (110, 0.9, 0.7, 0.4),
+            (130, 0.6, 0.5, 0.3),
+            (210, 0.7, 0.1, 0.2),
+            (1337, 0.1, 0.7, 0.0),
+        ], dtype=[('lucode', int), ('a', float), ('b', float), ('c', float)])
         outfile = StringIO()
         objectundertest.fill_in_and_write(bp_table, outfile)
         outfile.seek(0)
         result = outfile.read()
         expected = \
-            'lucode,nesting_cavity_availability_index,' + \
-            'nesting_ground_availability_index,' + \
-            'floral_resources_spring_index,floral_resources_summer_index\n' + \
-            '110,0.9,0.7,1,0.4\n' + \
-            '130,0.6,0.5,0.5,0.3\n' + \
-            '210,0.7,0.1,0.1,0.2\n' + \
-            '1337,0.1,0.7,0,0\n' + \
-            '0,0,0,0,0\n'
+            ','.join(bp_table.dtype.names)+'\n' + \
+            '110,0.9,0.7,0.4\n' + \
+            '130,0.6,0.5,0.3\n' + \
+            '210,0.7,0.1,0.2\n' + \
+            '1337,0.1,0.7,0\n' + \
+            '0,0,0,0\n'  # if one row is there, we assume all are
         self.assertEqual(result[:len(expected)], expected)
 
     def test_subtract_reveg_from_farm(self):

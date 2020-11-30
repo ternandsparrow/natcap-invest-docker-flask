@@ -1,10 +1,10 @@
-lucode,nesting_cavity_availability_index,nesting_ground_availability_index,floral_resources_spring_index,floral_resources_summer_index,LU_DESCRIP,comment
-110,0.9,0.7,1,0.4,Nature conservation,
-130,0.6,0.5,0.5,0.3,Other minimal use,
-210,0.7,0.1,0.1,0.2,Grazing native vegetation,
-220,0.4,0.4,0.7,0.6,Production native forests,
-310,0,0.1,0,0,Plantation forests,
-320,0,0.1,0.1,0,Grazing modified pastures,
-330,0,0.1,0.1,0,Cropping,Largely hay production in the Adelaide Hills.
-440,0.1,0.2,0.2,0.2,Irrigated perennial horticulture,
-540,0.4,0.5,0.6,0.5,Residential and farm infrastructure,
+lucode,nesting_cavity_availability_index,nesting_ground_availability_index,floral_resources_spring_index,LU_DESCRIP,comment
+110,0.9,0.7,1,Nature conservation,
+130,0.6,0.5,0.5,Other minimal use,
+210,0.7,0.1,0.1,Grazing native vegetation,
+220,0.4,0.4,0.7,Production native forests,
+310,0,0.1,0,Plantation forests,
+320,0,0.1,0.1,Grazing modified pastures,
+330,0,0.1,0.1,Cropping,Largely hay production in the Adelaide Hills.
+440,0.1,0.2,0.2,Irrigated perennial horticulture,
+540,0.4,0.5,0.6,Residential and farm infrastructure,

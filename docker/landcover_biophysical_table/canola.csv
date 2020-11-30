@@ -1,8 +1,8 @@
-lucode,nesting_cavity_availability_index,nesting_ground_availability_index,floral_resources_spring_index,floral_resources_summer_index,LU_DESCRIP,comment
-110,0.5,0.8,1,0.4,Nature conservation,
-130,0.5,0.8,0.5,0.4,Other minimal use,Roadside and associated areas
-210,0.5,0.1,0.4,0.2,Grazing native vegetation,
-320,0,0.2,0.3,0.1,Grazing modified pastures,
-330,0,0.2,0.1,0,Cropping,Canola and cereals
-440,0.1,0.2,0.2,0.2,Irrigated perennial horticulture,
-540,0.4,0.5,0.6,0.5,Residential and farm infrastructure,
+lucode,nesting_cavity_availability_index,nesting_ground_availability_index,floral_resources_spring_index,LU_DESCRIP,comment
+110,0.5,0.8,1,Nature conservation,
+130,0.5,0.8,0.5,Other minimal use,Roadside and associated areas
+210,0.5,0.1,0.4,Grazing native vegetation,
+320,0,0.2,0.3,Grazing modified pastures,
+330,0,0.2,0.1,Cropping,Canola and cereals
+440,0.1,0.2,0.2,Irrigated perennial horticulture,
+540,0.4,0.5,0.6,Residential and farm infrastructure,

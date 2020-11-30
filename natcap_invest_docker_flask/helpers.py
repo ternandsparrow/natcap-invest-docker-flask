@@ -2,7 +2,7 @@
 import numpy as np
 from shapely.geometry import mapping, shape
 
-biophys_col_count = 5  # ignore LU_DESCRIP and comment cols
+biophys_col_count = 4  # ignore LU_DESCRIP and comment cols
 
 
 def get_records(records, all_fields):
@@ -42,23 +42,23 @@ def fill_in_missing_lulc_rows(biophys_table):
     rest as 0s, we generate those rows on the fly. Child rows that don't have
     an explicit value will inherit from their parent.
     """
-    existing_lulc_codes = biophys_table[:, 0]
-    extra_codes = []
+    lucode_col = 'lucode'
+    existing_lulc_codes = biophys_table[lucode_col]
     max_lulc_code = 699
+    result = biophys_table
     for curr in range(max_lulc_code):
         if curr in existing_lulc_codes:
             continue
         try:
             parent_code = biophys_table_parent_of(curr)
-            parent_row = [x for x in biophys_table if x[0] == parent_code][0]
-            # inherit parent values
-            values = parent_row.copy()[1:]
+            parent_row = [x for x in result if x[lucode_col] == parent_code][0]
+            # inherit parent values, but leave off the lucode
+            values = list(parent_row.copy())[1:]
         except IndexError:
             # no parent row, make it all 0s
             values = [0 for x in range(1, biophys_col_count)]
-        extra_codes.append([curr] + list(values))
-    completed_table = np.concatenate((biophys_table, extra_codes), axis=0)
-    return completed_table
+        result = append_to_2d_np(result, [curr] + values)
+    return result
 
 
 def fill_in_and_write(biophys_table, file_path):
@@ -68,18 +68,18 @@ def fill_in_and_write(biophys_table, file_path):
       file_path:      where to write the CSV
     """
     completed_table = fill_in_missing_lulc_rows(biophys_table)
-    # TODO perhaps should read this header from the CSV file(s)
-    header = ','.join([
-        'lucode', 'nesting_cavity_availability_index',
-        'nesting_ground_availability_index', 'floral_resources_spring_index',
-        'floral_resources_summer_index'
-    ])
     format_template = ','.join(['%g' for x in range(biophys_col_count)])
     np.savetxt(file_path,
                completed_table,
                fmt=format_template,
-               header=header,
+               header=','.join(completed_table.dtype.names),
                comments='')
+
+
+def append_to_2d_np(np_array, new_row):
+    # thanks https://stackoverflow.com/a/31173311/1410035
+    np_friendly_row = np.array(tuple(new_row), dtype=np_array.dtype)
+    return np.append(np_array, np_friendly_row)
 
 
 def feature_collection_to_multipolygon(f_coll):

@@ -1,5 +1,5 @@
-SPECIES,nesting_suitability_cavity_index,nesting_suitability_ground_index,foraging_activity_spring_index,foraging_activity_summer_index,alpha,relative_abundance
-Apis,1,0,1,1,1000,1
-Amegilla,0,1,0.5,1,500,0.2
-Halictines,0,1,1,0.5,300,0.3
-Megachilids,1,0.1,0.1,0.9,300,0.1
+SPECIES,nesting_suitability_cavity_index,nesting_suitability_ground_index,foraging_activity_summer_index,alpha,relative_abundance
+Apis,1,0,1,1000,1
+Amegilla,0,1,1,500,0.2
+Halictines,0,1,0.5,300,0.3
+Megachilids,1,0.1,0.9,300,0.1
