@@ -97,6 +97,10 @@ def feature_collection_to_multipolygon(f_coll):
 
 
 def subtract_reveg_from_farm(farm_geojson, reveg_geojson):
+    # doing this means the farm with reveg has a different area than the
+    # original. It *needs* to be done though otherwise the farm shadows
+    # the reveg on the raster and the reveg has 0 effect. It's probably not
+    # safe to compare the result of two farms with different vectors.
     farm_shape = shape(feature_collection_to_multipolygon(farm_geojson))
     reveg_shape = shape(feature_collection_to_multipolygon(reveg_geojson))
     diffd = farm_shape.difference(reveg_shape)
