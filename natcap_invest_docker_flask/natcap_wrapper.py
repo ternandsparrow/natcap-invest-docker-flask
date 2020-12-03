@@ -1,8 +1,7 @@
 import time
-import math
 import csv
 import os
-import copy
+from copy import deepcopy
 import shutil
 import logging
 import base64
@@ -21,7 +20,7 @@ from flask.json import dumps
 
 from natcap_invest_docker_flask.helpers import \
     get_records, biophys_col_count, fill_in_and_write, \
-    subtract_reveg_from_farm, append_to_2d_np
+    subtract_reveg_from_farm, append_to_2d_np, subset_of_years
 from natcap_invest_docker_flask.logger import logger_getter
 from reveg_alg.alg import get_values_for_year
 
@@ -51,15 +50,7 @@ farm_lucode = 2000  # only used for generating raster for humans
 farm_layer_and_file_name = u'farms'
 reproj_reveg_filename = u'reprojected_' + KNOWN_REVEG_LAYER_NAME + '.json'
 FAILURE_FLAG = 'BANG!!!'
-
-
-def subset_of_years(target_years):
-    """ we don't need to run every year, so we can save compute by only running
-    a nicely spread out subset """
-    result = list(range(1, target_years + 1, math.ceil(target_years / 5)))
-    if target_years not in result:
-        result.append(target_years)
-    return result
+year_key = 'year'
 
 
 def landcover_biophys_table_path(crop_type):
@@ -113,33 +104,41 @@ def get_reveg_biophysical_table_row_for_year(year, existing_bp_table):
 
 def run_natcap_pollination(farm_vector_path, landcover_biophysical_table_path,
                            landcover_raster_path, workspace_dir_path,
-                           crop_type):
+                           crop_type, has_varroa_mite_hit):
     """ executes the pollination model and gathers the results """
+    varroa_fragment = '_varroa' if has_varroa_mite_hit else ''
+    guild_csv = f'{crop_type}{varroa_fragment}.csv'
     args = {
         u'farm_vector_path':
         farm_vector_path,
         u'guild_table_path':
-        os.path.join(app_docker_dir_path, u'guild_table', crop_type + u'.csv'),
+        os.path.join(app_docker_dir_path, u'guild_table', guild_csv),
         u'landcover_biophysical_table_path':
         landcover_biophysical_table_path,
         u'landcover_raster_path':
         landcover_raster_path,
         u'results_suffix':
-        u'',
+        varroa_fragment,
         u'workspace_dir':
         workspace_dir_path,
     }
     natcap.invest.pollination.execute(args)
     farm_results = shapefile.Reader(
-        os.path.join(workspace_dir_path, u'farm_results'))
+        os.path.join(workspace_dir_path, f'farm_results{varroa_fragment}'))
     records = get_records(farm_results.records(), farm_results.fields)
     return records
 
 
-def append_records(record_collector, new_records, year_number):
-    for curr in new_records:
-        curr.update({'year': year_number})
-        record_collector.append(curr)
+def add_year_to_record(year, record):
+    record[year_key] = year
+
+
+def set_reveg_flag(flag, record):
+    record['has_reveg'] = flag
+
+
+def set_varroa_flag(flag, record):
+    record['is_varroa'] = flag
 
 
 def read_biophys_table_from_file(file_path):
@@ -158,8 +157,8 @@ def debug_dump_bp_table(bp_table, year_num):
         logger.debug(f'[year {year_num}] biophys table:\n{header}\n{bp_table}')
 
 
-def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
-              output_queue, crop_type):
+def do_no_reveg_runs(farm_vector_path, landcover_raster_path, workspace_dir,
+                     output_queue, crop_type, varroa_mite_year, total_years):
     try:
         logger.debug('processing year 0')
         year0_workspace_dir_path = os.path.join(workspace_dir, 'year0')
@@ -170,11 +169,57 @@ def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
         year0_biophys_table_path = os.path.join(
             year0_workspace_dir_path, 'landcover_biophysical_table.csv')
         fill_in_and_write(bp_table, year0_biophys_table_path)
-        records = run_natcap_pollination(farm_vector_path,
-                                         year0_biophys_table_path,
-                                         landcover_raster_path,
-                                         year0_workspace_dir_path, crop_type)
-        output_queue.put((0, records))
+
+        def run_and_set_varroa_as(is_varroa):
+            return run_natcap_pollination(farm_vector_path,
+                                          year0_biophys_table_path,
+                                          landcover_raster_path,
+                                          year0_workspace_dir_path, crop_type,
+                                          is_varroa)
+
+        def yv_mapper(year, is_varroa):
+            def result(e):
+                add_year_to_record(year, e)
+                set_reveg_flag(False, e)  # these runs are the "no reveg" ones
+                set_varroa_flag(is_varroa, e)
+                return e
+            return result
+
+        # year 0 records
+        year0_records = run_and_set_varroa_as(False)
+        year0_no_varroa_recs = map(yv_mapper(0, False), year0_records)
+        # note: we make copies of lots of records to make the client's life
+        # easier when it comes to charting. There's no out-of-band knowledge
+        # required to be able to chart the results.
+        # note: we assume varroa won't hit in year 0
+        year0_varroa_recs = map(
+            yv_mapper(0, True), deepcopy(year0_records))
+
+        year_before_varroa = varroa_mite_year - 1
+        if year_before_varroa > 0:
+            # we need this so the chart has the sudden drop for varroa
+            year_before_varroa_recs = map(
+                yv_mapper(year_before_varroa, True), deepcopy(year0_records))
+        else:
+            year_before_varroa_recs = []
+
+        # varroa year records
+        raw_year_varroa_records = run_and_set_varroa_as(True)
+        year_varroa_recs = map(
+            yv_mapper(varroa_mite_year, True), raw_year_varroa_records)
+
+        # final year records
+        year_final_no_varroa_recs = map(
+            yv_mapper(total_years, False), deepcopy(year0_records))
+        year_final_varroa_recs = map(
+            yv_mapper(total_years, True), deepcopy(raw_year_varroa_records))
+        result = list(year0_no_varroa_recs) + \
+            list(year0_varroa_recs) + \
+            list(year_before_varroa_recs) + \
+            list(year_varroa_recs) + \
+            list(year_final_no_varroa_recs) + \
+            list(year_final_varroa_recs)
+        output_queue.put(result)
     except Exception:
         logger.exception(
             'Failed while processing year 0')  # stack trace will be included
@@ -182,11 +227,12 @@ def run_year0(farm_vector_path, landcover_raster_path, workspace_dir,
 
 
 def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
-                    year_number, reveg_vector, output_queue, crop_type):
+                    year_number, reveg_vector, output_queue, crop_type,
+                    varroa_mite_year):
     try:
-        logger.debug('processing year %s' % str(year_number))
+        logger.debug(f'processing year {year_number}')
         year_workspace_dir_path = os.path.join(workspace_dir,
-                                               'year' + str(year_number))
+                                               f'year{year_number}')
         os.mkdir(year_workspace_dir_path)
         bp_table = build_biophys_table(crop_type, year_number)
         debug_dump_bp_table(bp_table, year_number)
@@ -195,11 +241,38 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
         fill_in_and_write(bp_table, curr_year_landcover_bp_table_path)
         new_landcover_raster_path = burn_reveg_on_raster(
             landcover_raster_path, reveg_vector, year_workspace_dir_path)
-        records = run_natcap_pollination(farm_vector_path,
-                                         curr_year_landcover_bp_table_path,
-                                         new_landcover_raster_path,
-                                         year_workspace_dir_path, crop_type)
-        output_queue.put((year_number, records))
+
+        def run_and_set_varroa_as(is_varroa):
+            return run_natcap_pollination(farm_vector_path,
+                                          curr_year_landcover_bp_table_path,
+                                          new_landcover_raster_path,
+                                          year_workspace_dir_path, crop_type,
+                                          is_varroa)
+
+        records = []
+
+        def no_varroa_mapper(e):
+            set_varroa_flag(False, e)
+            set_reveg_flag(True, e)
+            add_year_to_record(year_number, e)
+            return e
+
+        records += map(no_varroa_mapper, run_and_set_varroa_as(False))
+
+        def varroa_mapper(e):
+            set_varroa_flag(True, e)
+            set_reveg_flag(True, e)
+            add_year_to_record(year_number, e)
+            return e
+
+        has_varroa_mite_hit = year_number >= varroa_mite_year
+        if has_varroa_mite_hit:
+            varroa_records = run_and_set_varroa_as(True)
+            records += map(varroa_mapper, varroa_records)
+        else:
+            # duplicate the non-varroa result for client's benefit
+            records += map(varroa_mapper, deepcopy(records))
+        output_queue.put(records)
     except Exception:
         logger.exception('Failed while processing year %d' %
                          year_number)  # stack trace will be included
@@ -275,8 +348,8 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
     subprocess.check_call([
         burn_vector_script_path,
         farm_on_raster_path.replace('.png', '.tif'),
-        reveg_and_farm_on_raster_path, reveg_vector_path, KNOWN_REVEG_LAYER_NAME,
-        str(reveg_lucode)
+        reveg_and_farm_on_raster_path, reveg_vector_path,
+        KNOWN_REVEG_LAYER_NAME, str(reveg_lucode)
     ],
         stdout=subprocess.DEVNULL)
     with open(reveg_and_farm_on_raster_path, 'rb') as f2:
@@ -364,7 +437,7 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
             }
         }
         multipolygon['properties']['crop_type'] = crop_type
-        baked_geojson_vector['features'].append(copy.deepcopy(multipolygon))
+        baked_geojson_vector['features'].append(deepcopy(multipolygon))
     crs = get_crs_from_geojson(geojson_vector_from_user)
     with open(geojson_path, 'w') as f:
         f.write(dumps(baked_geojson_vector))
@@ -399,7 +472,7 @@ class NatcapModelRunner(object):
 
     def _execute_model(self, landcover_raster_cropper_fn, geojson_farm_vector,
                        years_to_simulate, geojson_reveg_vector, crop_type,
-                       mark_year_as_done_fn):
+                       mark_year_as_done_fn, varroa_mite_year):
         start_ms = now_in_ms()
         workspace_dir = workspace_path(generate_unique_token())
         logger.debug(f'using workspace dir "{workspace_dir}"')
@@ -434,17 +507,18 @@ class NatcapModelRunner(object):
         processes = []
 
         processes.append(
-            pool.apply_async(run_year0,
+            pool.apply_async(do_no_reveg_runs,
                              (farm_vector_path, landcover_raster_path,
-                              workspace_dir, output, crop_type)))
-        for curr_year in subset_of_years(years_to_simulate):
+                              workspace_dir, output, crop_type,
+                              varroa_mite_year, years_to_simulate)))
+        for curr_year in subset_of_years(years_to_simulate, varroa_mite_year):
             processes.append(
-                pool.apply_async(
-                    run_future_year,
-                    (farm_vector_minus_reveg_path, landcover_raster_path,
-                     workspace_dir, curr_year, geojson_reveg_vector, output,
-                     crop_type)))
-        queue_results = []
+                pool.apply_async(run_future_year,
+                                 (farm_vector_minus_reveg_path,
+                                     landcover_raster_path, workspace_dir,
+                                     curr_year, geojson_reveg_vector, output,
+                                     crop_type, varroa_mite_year)))
+        records = []
         pool.close()
         # we don't pool.join(), instead we block on the results in the queue so
         # we can fire notifications as processes finish. We trust that once we
@@ -454,13 +528,8 @@ class NatcapModelRunner(object):
             if process_result == FAILURE_FLAG:
                 raise RuntimeError('Failed while executing the model')
             mark_year_as_done_fn()
-            queue_results.append(process_result)
-        queue_results.sort()
-        records = []
-        for curr in queue_results:
-            year_num = curr[0]
-            year_records = curr[1]
-            append_records(records, year_records, year_num)
+            records += process_result
+        records.sort(key=lambda x: x[year_key])
         result = {
             'images':
             generate_images(workspace_dir, landcover_raster_path,

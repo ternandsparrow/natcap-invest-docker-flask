@@ -16,6 +16,10 @@
 #   replace all the booleans to have an uppercase first letter for Python
 #   remove everything from the 'geometry' objects except "$id" and "type",
 #   we'll use another module to validate that
+
+f_items = "/properties/farm/properties/features/items"
+r_items = "/properties/reveg/properties/features/items"
+
 schema = {
     "$id": "http://pollin8.org.au/pollination.json",
     "type": "object",
@@ -29,6 +33,10 @@ schema = {
         },
         "years": {
             "$id": "/properties/years",
+            "type": "number"
+        },
+        "varroa_mite_year": {
+            "$id": "/properties/varroa_mite_year",
             "type": "number"
         },
         "socketio_sid": {
@@ -45,34 +53,36 @@ schema = {
                     "type": "string"
                 },
                 # TODO support supplying a CRS. Our code supports it but only
-                # to run the official NatCap sample data. Also add it for reveg.
+                # to run the official NatCap sample data. Also add it for
+                # reveg.
                 "features": {
                     "$id": "/properties/farm/properties/features",
                     "type": "array",
                     "additionalItems": False,
                     "items": {
-                        "$id": "/properties/farm/properties/features/items",
+                        "$id": f_items,
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
                             "type": {
                                 "$id":
-                                "/properties/farm/properties/features/items/properties/type",
+                                f"{f_items}/properties/type",
                                 "type": "string"
                             },
-                            "properties":
-                            {  # technically GeoJSON requires this field, but we set it all server side
+                            "properties": {
+                                # technically GeoJSON requires this field, but
+                                # we set it all server side
                                 "$id":
-                                "/properties/farm/properties/features/items/properties/properties",
+                                f"{f_items}/properties/properties",
                                 "type": "object",
                                 "additionalProperties": False,
                                 "properties": {}
                             },
                             "geometry": {
                                 "$id":
-                                "/properties/farm/properties/features/items/properties/geometry",
+                                f"{f_items}/properties/geometry",
                                 "type": "object",
-                                # let python's geojson handle validation for this
+                                # let python's geojson handle validation
                             }
                         }
                     }
@@ -93,28 +103,29 @@ schema = {
                     "type": "array",
                     "additionalItems": False,
                     "items": {
-                        "$id": "/properties/reveg/properties/features/items",
+                        "$id": r_items,
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
                             "type": {
                                 "$id":
-                                "/properties/reveg/properties/features/items/properties/type",
+                                f"{r_items}/properties/type",
                                 "type": "string"
                             },
-                            "properties":
-                            {  # technically GeoJSON requires this field, but we set it all server side
+                            "properties": {
+                                # technically GeoJSON requires this field, but
+                                # we set it all server side
                                 "$id":
-                                "/properties/reveg/properties/features/items/properties/properties",
+                                f"{r_items}/properties/properties",
                                 "type": "object",
                                 "additionalProperties": False,
                                 "properties": {}
                             },
                             "geometry": {
                                 "$id":
-                                "/properties/reveg/properties/features/items/properties/geometry",
+                                f"{r_items}/properties/geometry",
                                 "type": "object",
-                                # let python's geojson handle validation for this
+                                # let python's geojson handle validation
                             }
                         }
                     }

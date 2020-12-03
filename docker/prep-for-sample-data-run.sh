@@ -6,8 +6,9 @@ cd `dirname "$0"`
 thisDir=$PWD
 cd ..
 
+force=${1:-} # anything is truthy
 flagFile=/tmp/prep-for-sample-done-done
-if [ -f $flagFile ]; then
+if [ ! "$force" -a -f $flagFile ]; then
   exit 0
 fi
 
@@ -23,11 +24,17 @@ tmpLulc=$lulcPath.filtered
 echo "Filtering LULC table columns"
 cut -d, -f2 --complement $lulcPath > $tmpLulc
 
+# TODO: we should remove the columns for the season each crop does NOT use.
+# Leaving them in won't break things but you'll see warnings about "no pixels"
+# or something to that effect during the run.
 for curr in almonds blueberries; do
   echo "$curr: guild table"
   ln --symbolic --force \
     /data/pollination-sample/guild_table.csv \
     ./docker/guild_table/$curr.csv
+  ln --symbolic --force \
+    ./docker/guild_table/$curr.csv \
+    ./docker/guild_table/${curr}_varroa.csv
   echo "$curr: farm attributes"
   tmpFat=`mktemp`
   ogr2ogr -f csv /vsistdout/ $farmShp > $tmpFat

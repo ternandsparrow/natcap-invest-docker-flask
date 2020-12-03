@@ -1,12 +1,13 @@
 Flask-Cors==3.0.7
 Flask-Inputs==0.3.0
+Flask-SocketIO==4.0.0
 Flask==1.0.2
+Shapely==1.7.1
 eventlet==0.25.0
 flask-accept==0.0.6
-Flask-SocketIO==4.0.0
 geojson==2.4.1
 jsonschema==3.0.1
 matplotlib==3.2.0
 pyshp==2.1.0
+sentry-sdk[flask]==0.19.4
 subprocess32==3.5.3
-Shapely==1.7.1

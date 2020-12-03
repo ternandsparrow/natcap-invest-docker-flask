@@ -2,7 +2,7 @@ import unittest
 import os
 import logging
 
-from flask.json import loads, dumps
+from flask.json import loads, load, dumps
 
 from .context import natcap_invest_docker_flask
 from natcap_invest_docker_flask.invest_http_flask \
@@ -53,7 +53,7 @@ class Test(unittest.TestCase):
         class StubModelRunner(object):
             def execute_model(self, geojson_farm_vector, years_to_simulate,
                               geojson_reveg_vector, crop_type,
-                              mark_year_as_done_fn):
+                              mark_year_as_done_fn, varroa_mite_year):
                 return {
                     'images': ['/images/123/image1.png'],
                     'records': [{
@@ -68,19 +68,20 @@ class Test(unittest.TestCase):
         with open(
                 os.path.join(static_files_dir_path,
                              'example-farm-vector.json')) as f:
-            farm_data = f.read()
+            farm_data = load(f)
         with open(
                 os.path.join(static_files_dir_path,
                              'example-reveg-vector.json')) as f:
-            reveg_data = f.read()
-        data = '{"crop_type":"apple","years":3,"farm":%s,"reveg":%s}' % (
-            farm_data, reveg_data)
+            reveg_data = load(f)
+        data = dumps({'crop_type': 'apple', 'years': 3,
+                      'varroa_mite_year': 2, 'farm': farm_data,
+                      'reveg': reveg_data})
         result = self.init_test_app(StubModelRunner()).post(
             '/pollination',
             data=data,
             content_type='application/json',
             headers={'accept': 'application/json'})
-        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.status_code, 200, result.data)
         self.assertEqual(
             loads(result.data), {
                 'images': ['/images/123/image1.png'],
@@ -188,7 +189,7 @@ class Test(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertEqual(
             loads(result.data),
-            {'message': 'years param cannot be any larger than 30'})
+            {'message': 'years cannot be > 30'})
 
     def test_tester01(self):
         """ can we get the tester UI? """

@@ -17,6 +17,9 @@ export NATCAP_TAG=`git tag | tail -n 1`
 # export NIDF_ENV=production
 export SOCKETIO_SECRET=${SOCKETIO_SECRET:-`uuidgen`}
 
+# uncomment to enable Sentry.io reporting
+# export SENTRY_DSN="https://11111111111111111111111111111111@o222222.ingest.sentry.io/3333333"
+
 isLocalDevMode=`[ ! -z "${LOCAL_DEV:-}" ]`
 
 dc='docker-compose'
@@ -37,6 +40,12 @@ if $isLocalDevMode; then
    python debugger in here.
  - A static file server is running on http://localhost:${FILES_PORT} so you can
    inspect the /workspace files with your web browser.
+ - Your local files are shadowing the container's so if you want to run the
+   official natcap sample data, you'll need to:
+    - open a separate terminal
+    - exec into this container as root: docker exec -it -u 0 natcap bash
+    - run the prep script: ./docker/prep-for-sample-data-run.sh force
+   ...then you can run the sample data.
 EOF
   docker exec -it natcap bash
   echo "[INFO] killing the stack for you"

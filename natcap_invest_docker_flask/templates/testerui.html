@@ -130,6 +130,21 @@
                     simulation?</small
                   >
                 </div>
+                <div class="form-group">
+                  <label for="inputYears" style="margin-right: 2em;"
+                    >Years until varroa mite hits</label
+                  >
+                  <input
+                    type="number"
+                    ng-model="varroaMiteYear"
+                    class="form-control nidf-input"
+                    id="inputYears"
+                  />
+                  <small id="inputYearsHelp" class="form-text text-muted"
+                    >Varroa mite will have a big impact on feral honey bees,
+                    which year should we model it occurring?</small
+                  >
+                </div>
                 <div class="alert alert-info">
                   To edit the GeoJSON vectors:
                   <ol>
@@ -350,6 +365,8 @@
           var accepted = [
             "year",
             "season",
+            "is_varroa",
+            "has_reveg",
             "p_abund",
             "pdep_y_w",
             "y_tot",
@@ -373,7 +390,8 @@
         $scope.farmVector = `{j{example_farm_vector|safe}j}`;
         $scope.revegVector = `{j{example_reveg_vector|safe}j}`;
         $scope.cropType = "apple";
-        $scope.yearsToSimulate = 3;
+        $scope.yearsToSimulate = 25;
+        $scope.varroaMiteYear = 7;
         $scope.revegPct = 2;
         $scope.runtimeEstimate = "about 15";
         $scope.processedYears = 0;
@@ -415,6 +433,7 @@
           var postBody = {
             crop_type: $scope.cropType,
             years: $scope.yearsToSimulate,
+            varroa_mite_year: $scope.varroaMiteYear,
             farm: JSON.parse($scope.farmVector),
             reveg: JSON.parse($scope.revegVector),
             socketio_sid: socket.id,
@@ -474,7 +493,7 @@
           if (!$scope.resultTable) {
             return [];
           }
-          var first = $scope.resultTable[0];
+          const first = $scope.resultTable[0];
           return Object.keys(first).reduce(function (accum, curr) {
             if (curr.startsWith("$")) {
               return accum;
@@ -485,8 +504,12 @@
         }
 
         $scope.onYearsChange = function () {
+          const y = $scope.yearsToSimulate
+          if (!y) {
+            return
+          }
           return $http
-            .get(url("/estimate-runtime?years=" + $scope.yearsToSimulate))
+            .get(url("/estimate-runtime?years=" + y))
             .then(function (resp) {
               $scope.runtimeEstimate = resp.data.seconds;
             });

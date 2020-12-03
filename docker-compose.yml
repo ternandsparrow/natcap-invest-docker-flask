@@ -10,6 +10,7 @@ services:
       SOCKETIO_SECRET: ${SOCKETIO_SECRET:-pssst}
       FARM_PADDING_METRES: 1500
       IS_CHOMP_FARM_VECTOR: 1
+      SENTRY_DSN: ${SENTRY_DSN:-}
     restart: 'no'
     ports:
       - '${NATCAP_PORT:-5000}:5000'

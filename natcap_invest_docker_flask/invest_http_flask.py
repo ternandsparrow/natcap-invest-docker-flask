@@ -9,6 +9,8 @@ from flask_cors import CORS
 from flask_inputs import Inputs
 from flask_inputs.validators import JsonSchema
 import geojson
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 from natcap_invest_docker_flask.schema import schema as pollination_schema
 from natcap_invest_docker_flask.logger import logger_getter
@@ -21,6 +23,18 @@ crop_type_key = 'crop_type'
 
 app_root = os.path.dirname(os.path.abspath(__file__))
 app_static = os.path.join(app_root, 'static')
+
+sentry_dsn = os.getenv('SENTRY_DSN')
+if sentry_dsn:
+    logger.info('Sentry DSN supplied, init-ing Sentry')
+    # this seems to be enough to capture exception in the main and worker
+    # processes. Magic :D
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FlaskIntegration()],
+    )
+else:
+    logger.info('No Sentry DSN supplied, refusing to init')
 
 
 def log_geojson(data, type_of_vector):
@@ -247,8 +261,10 @@ class AppBuilder(object):
         post_body = request.get_json()
         years_to_simulate = post_body['years']
         if years_to_simulate > MAX_YEARS_TO_SIMULATE:
-            raise InvalidUsage('years param cannot be any larger than %d' %
-                               MAX_YEARS_TO_SIMULATE)
+            raise InvalidUsage(f'years cannot be > {MAX_YEARS_TO_SIMULATE}')
+        varroa_mite_year = post_body['varroa_mite_year']
+        if not 0 < varroa_mite_year < years_to_simulate:
+            raise InvalidUsage('varroa_mite_year must be 0 < n < years')
         geojson_farm_vector = post_body['farm']
         # TODO validate farm vector is within extent of landcover raster
         log_geojson(geojson_farm_vector, 'farm')
@@ -272,6 +288,7 @@ class AppBuilder(object):
             self.socketio.sleep(0)  # flush
 
         result = runner_fn(geojson_farm_vector, years_to_simulate,
-                           geojson_reveg_vector, crop_type, mark_year_as_done)
+                           geojson_reveg_vector, crop_type, mark_year_as_done,
+                           varroa_mite_year)
 
         return jsonify(result)

@@ -3,7 +3,7 @@ from io import StringIO
 import numpy as np
 from .context import natcap_invest_docker_flask
 
-objectundertest = natcap_invest_docker_flask
+objectundertest = natcap_invest_docker_flask.helpers
 
 
 class Test(unittest.TestCase):
@@ -56,7 +56,7 @@ class Test(unittest.TestCase):
             for curr_col_index in range(1, len(curr_row)):
                 col_val = curr_row[curr_col_index]
                 try:
-                    parent_code = objectundertest.helpers.biophys_table_parent_of(
+                    parent_code = objectundertest.biophys_table_parent_of(
                         code)
                     parent_row = [x for x in bp_table
                                   if x[0] == parent_code][0]
@@ -69,27 +69,27 @@ class Test(unittest.TestCase):
 
     def test_biophys_table_parent_of01(self):
         """ can we find the parent of a child """
-        result = objectundertest.helpers.biophys_table_parent_of(111)
+        result = objectundertest.biophys_table_parent_of(111)
         self.assertEqual(result, 110)
 
     def test_biophys_table_parent_of02(self):
         """ is a parent its own parent? """
-        result = objectundertest.helpers.biophys_table_parent_of(110)
+        result = objectundertest.biophys_table_parent_of(110)
         self.assertEqual(result, 110)
 
     def test_biophys_table_parent_of03(self):
         """ can we handle a value < 100 """
-        result = objectundertest.helpers.biophys_table_parent_of(93)
+        result = objectundertest.biophys_table_parent_of(93)
         self.assertEqual(result, 90)
 
     def test_biophys_table_parent_of04(self):
         """ can we handle a value < 10 """
-        result = objectundertest.helpers.biophys_table_parent_of(9)
+        result = objectundertest.biophys_table_parent_of(9)
         self.assertEqual(result, 0)
 
     def test_biophys_table_parent_of05(self):
         """ can we handle 0 """
-        result = objectundertest.helpers.biophys_table_parent_of(0)
+        result = objectundertest.biophys_table_parent_of(0)
         self.assertEqual(result, 0)
 
     def test_append_to_2d_array01(self):
@@ -99,7 +99,7 @@ class Test(unittest.TestCase):
             (1337, 0.1, 0.7, 0.0),
         ], dtype=[('lucode', int), ('a', float), ('b', float), ('c', float)])
         row = [117] + [0, 0, 0]
-        result = objectundertest.helpers.append_to_2d_np(bp_table, row)
+        result = objectundertest.append_to_2d_np(bp_table, row)
         self.assertEqual(len(bp_table), 2)
         self.assertEqual(len(result), 3)
         self.assertTupleEqual(tuple(result[2]), (117, 0, 0, 0))
@@ -125,7 +125,7 @@ class Test(unittest.TestCase):
             '0,0,0,0\n'  # if one row is there, we assume all are
         self.assertEqual(result[:len(expected)], expected)
 
-    def test_subtract_reveg_from_farm(self):
+    def test_subtract_reveg_from_farm01(self):
         """ can we chop the reveg out of the farm vector? """
         farm = make_feature_collection([[
             [0, 0],
@@ -147,6 +147,59 @@ class Test(unittest.TestCase):
             result,
             make_feature_collection((((1.0, 0.0), (0.0, 0.0), (0.0, 2.0),
                                       (1.0, 2.0), (1.0, 0.0)), )))
+
+    def test_subset_of_years01(self):
+        """ can we handle numbers below the threshold """
+        self.assertEqual(
+            objectundertest.subset_of_years(1, 1),
+            [1]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(2, 1),
+            [1, 2]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(3, 1),
+            [1, 2, 3]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(4, 1),
+            [1, 2, 3, 4]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(5, 1),
+            [1, 2, 3, 4, 5]
+        )
+
+    def test_subset_of_years02(self):
+        """ can we handle numbers up to twice the threshold """
+        self.assertEqual(
+            objectundertest.subset_of_years(6, 1),
+            [1, 3, 5, 6]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(7, 1),
+            [1, 3, 5, 7]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(9, 1),
+            [1, 3, 5, 7, 9]
+        )
+
+    def test_subset_of_years03(self):
+        """ can we handle numbers up to thrice the threshold """
+        self.assertEqual(
+            objectundertest.subset_of_years(11, 1),
+            [1, 4, 7, 10, 11]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(13, 1),
+            [1, 4, 7, 10, 13]
+        )
+        self.assertEqual(
+            objectundertest.subset_of_years(15, 1),
+            [1, 4, 7, 10, 13, 15]
+        )
 
 
 def make_feature_collection(coords):

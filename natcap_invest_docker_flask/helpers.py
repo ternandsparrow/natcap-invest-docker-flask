@@ -1,4 +1,5 @@
 """ Stuff that is easier to unit test without all the other dependencies """
+import math
 import numpy as np
 from shapely.geometry import mapping, shape
 
@@ -114,4 +115,23 @@ def subtract_reveg_from_farm(farm_geojson, reveg_geojson):
             "geometry": diffd_geojson
         }]
     }
+    return result
+
+
+def subset_of_years(target_years, varroa_year):
+    """ we don't need to run every year, so we can save compute by only running
+    a nicely spread out subset """
+    desired_year_count = 5
+    if target_years <= desired_year_count:
+        return list(range(1, target_years + 1))
+    result = list(range(1, target_years + 1,
+                        math.ceil(target_years / desired_year_count)))
+    if target_years not in result:
+        result.append(target_years)
+    # adding these pivotal varroa years makes the chart better
+    if varroa_year not in result:
+        result.append(varroa_year)
+    year_before_varroa = varroa_year - 1
+    if year_before_varroa and year_before_varroa not in result:
+        result.append(year_before_varroa)
     return result
