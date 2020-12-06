@@ -416,28 +416,18 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
     shapefile_path = os.path.join(workspace_dir, filename_fragment + u'.shp')
     geojson_path = os.path.join(workspace_dir, filename_fragment + u'.json')
     attr_table_rows = load_farm_attributes(crop_type)
-    if len(attr_table_rows) < 1:
-        logger.warn('No farm attribute rows found for crop %s' % crop_type)
-    baked_geojson_vector = {'type': 'FeatureCollection', 'features': []}
-    for curr_attr_row in attr_table_rows:
-        # merge all the features into a multipolygon so we get a single result
-        # per season, otherwise we'd have to somehow merge separate results.
-        multipolygon = {
-            'type': 'Feature',
-            'properties': curr_attr_row,
-            'geometry': {
-                'type':
-                'MultiPolygon',
-                'coordinates': [
-                    # note: we don't support MultiPolygons from the user. We
-                    # could but our use case doesn't require it.
-                    x['geometry']['coordinates']
-                    for x in geojson_vector_from_user['features']
-                ]
-            }
-        }
-        multipolygon['properties']['crop_type'] = crop_type
-        baked_geojson_vector['features'].append(deepcopy(multipolygon))
+    row_count = len(attr_table_rows)
+    if row_count != 1:
+        logger.warn('Data error: Incorrect number of farm attribute rows' +
+                    f'found={row_count} for crop {crop_type}. Must be ' +
+                    'exactly 1!')
+    row = attr_table_rows[0]
+    row['crop_type'] = crop_type
+    baked_geojson_vector = deepcopy(geojson_vector_from_user)
+    # We only support a single polygon from the user. To support multiple
+    # features/MultiPolygons we have to add logic that can draw the reveg in
+    # the middle of *each* vector.
+    baked_geojson_vector['features'][0]['properties'] = row
     crs = get_crs_from_geojson(geojson_vector_from_user)
     with open(geojson_path, 'w') as f:
         f.write(dumps(baked_geojson_vector))

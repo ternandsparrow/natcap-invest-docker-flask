@@ -177,14 +177,19 @@ class Test(unittest.TestCase):
         data = u'{"years":55,"crop_type":"canola","reveg":{},"farm":{}}'
 
         class Stub:
-            def execute_model(self):
+            def execute_model_for_sample_data(self):
                 raise Exception('should not be called')
 
+        orig_level = object_under_test_logger.level
+        object_under_test_logger.setLevel(logging.FATAL)
         result = self.init_test_app(Stub()).post(
-            '/pollination',
+            # using this instead of /pollination so we don't have to craft
+            # valid geojson vectors in the req body.
+            '/run-sample',
             data=data,
             content_type='application/json',
             headers={'accept': 'application/json'})
+        object_under_test_logger.setLevel(orig_level)
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertEqual(

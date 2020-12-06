@@ -20,7 +20,7 @@ jobs:
       with:
         python-version: '3.8'
     - name: Lint biophysical tables
-      run: bash scripts/lint-biophys-tables.sh
+      run: bash scripts/lint-csvs.sh
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip

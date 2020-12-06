@@ -139,8 +139,8 @@ def validate_request(request_dict, force_crop=False):
     if crop_type not in valid_crop_types:
         raise InvalidUsage('crop_type must be one of: ' +
                            str(valid_crop_types))
-    assert_geojson(request_dict['farm'])
-    assert_geojson(request_dict['reveg'])
+    assert_geojson(request_dict, 'farm')
+    assert_geojson(request_dict, 'reveg')
     assert_json_schema()
     # FIXME validate socketio_sid
 
@@ -156,11 +156,23 @@ def assert_json_schema():
     raise InvalidUsage('JSON schema validation failed: ' + str(inputs.errors))
 
 
-def assert_geojson(geojson_dict):
+def assert_geojson(the_req, key):
+    geojson_dict = the_req[key]
     try:
-        geojson.loads(dumps(geojson_dict))
+        g = geojson.loads(dumps(geojson_dict))
+        is_not_feature_collection = g['type'].upper() != 'FEATURECOLLECTION'
+        if is_not_feature_collection:
+            raise InvalidUsage(f'{key} vector is not a FeatureCollection')
+        feats = g['features']
+        is_wrong_length = len(feats) != 1
+        if is_wrong_length:
+            raise InvalidUsage(f'{key} must have exactly 1 feature')
+        feat_geom_type = feats[0]['geometry']['type'].upper()
+        is_feature_not_polygon = feat_geom_type != 'POLYGON'
+        if is_feature_not_polygon:
+            raise InvalidUsage(f'{key} feature is not a Polygon')
     except ValueError as e:
-        raise InvalidUsage('Not valid geojson: ' + e.message)
+        raise InvalidUsage(f'{key} is not valid geojson: {e}')
 
 
 def tester():
