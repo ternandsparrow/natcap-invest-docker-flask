@@ -37,10 +37,6 @@ metres_of_padding_for_farm = int(os.getenv('FARM_PADDING_METRES', 1500))
 logger.info(f'Using farm padding of {metres_of_padding_for_farm} metres')
 is_purge_workspace = bool(int(os.getenv('PURGE_WORKSPACE', 1)))
 logger.info(f'Purge workspace after run = {is_purge_workspace}')
-is_farm_vector_chomped_for_year0 = bool(
-    int(os.getenv('IS_CHOMP_FARM_VECTOR', 1)))
-logger.info('Is chomping reveg out of farm vector for ' +
-            f'year0? {is_farm_vector_chomped_for_year0}')
 
 data_dir_path = u'/data/pollination'
 app_docker_dir_path = u'/app/docker'
@@ -73,6 +69,10 @@ def now_in_ms():
 
 def generate_unique_token():
     return '%d_%s' % (now_in_ms(), uuid.uuid4())
+
+
+def run_subprocess(args):
+    subprocess.check_call(args, stdout=subprocess.DEVNULL)
 
 
 def get_reveg_biophysical_table_row_for_year(year, existing_bp_table):
@@ -163,8 +163,7 @@ def do_no_reveg_runs(farm_vector_path, landcover_raster_path, workspace_dir,
         logger.debug('processing year 0')
         year0_workspace_dir_path = os.path.join(workspace_dir, 'year0')
         os.mkdir(year0_workspace_dir_path)
-        landcover_bp_table_path = landcover_biophys_table_path(crop_type)
-        bp_table = read_biophys_table_from_file(landcover_bp_table_path)
+        bp_table = build_no_reveg_biophys_table(crop_type)
         debug_dump_bp_table(bp_table, 0)
         year0_biophys_table_path = os.path.join(
             year0_workspace_dir_path, 'landcover_biophysical_table.csv')
@@ -226,9 +225,29 @@ def do_no_reveg_runs(farm_vector_path, landcover_raster_path, workspace_dir,
         output_queue.put(FAILURE_FLAG)
 
 
+def build_no_reveg_biophys_table(crop_type):
+    """ Build biophysical table for run with no reveg.
+    We need to chomp the reveg vector out of the farm vector so allow the reveg
+    lucode to show through during reveg runs. However, during no reveg runs, we
+    would just have the underlying lucode show through, which is not correct.
+    Here we set the biophys table values for the reveg vector to what the farm
+    is so the run is as-if the farm covers everything. The only caveat is that
+    the model won't calculate yield for that chomped out piece."""
+    base_landcover_bp_table_path = landcover_biophys_table_path(crop_type)
+    bp_table = read_biophys_table_from_file(base_landcover_bp_table_path)
+    fat_row = load_farm_attributes(crop_type)
+    prefix = 'fr_'
+    fr_col_keys = list(filter(lambda x: x.startswith(prefix), fat_row.keys()))
+    if len(fr_col_keys) != 1:
+        raise ValueError(f'Data error: expecting exactly 1 {prefix} column')
+    fr_season_col_val = fat_row[fr_col_keys[0]]
+    reveg_row = [reveg_lucode, fat_row['n_cavity'], fat_row['n_ground'],
+                 fr_season_col_val]
+    return append_to_2d_np(bp_table, reveg_row)
+
+
 def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
-                    year_number, reveg_vector, output_queue, crop_type,
-                    varroa_mite_year):
+                    year_number, output_queue, crop_type, varroa_mite_year):
     try:
         logger.debug(f'processing year {year_number}')
         year_workspace_dir_path = os.path.join(workspace_dir,
@@ -239,13 +258,11 @@ def run_future_year(farm_vector_path, landcover_raster_path, workspace_dir,
         curr_year_landcover_bp_table_path = os.path.join(
             year_workspace_dir_path, 'landcover_biophysical_table.csv')
         fill_in_and_write(bp_table, curr_year_landcover_bp_table_path)
-        new_landcover_raster_path = burn_reveg_on_raster(
-            landcover_raster_path, reveg_vector, year_workspace_dir_path)
 
         def run_and_set_varroa_as(is_varroa):
             return run_natcap_pollination(farm_vector_path,
                                           curr_year_landcover_bp_table_path,
-                                          new_landcover_raster_path,
+                                          landcover_raster_path,
                                           year_workspace_dir_path, crop_type,
                                           is_varroa)
 
@@ -291,20 +308,19 @@ def burn_reveg_on_raster(year0_raster_path, reveg_vector,
     """ clones the raster and burns the reveg landuse code into the clone using
     the vector """
     data = None
-    result_path = os.path.join(year_workspace_dir_path, 'landcover_raster.tif')
+    result_path = os.path.join(year_workspace_dir_path,
+                               'landcover_raster_with_reveg.tif')
     with open(year0_raster_path, 'rb') as f:
         data = f.read()
     with open(result_path, 'wb') as f:
         f.write(data)
     reprojected_reveg_vector_path = reproject_geojson_to_epsg3107(
         year_workspace_dir_path, reveg_vector)
-    # feel the burn!
-    subprocess.check_call([
+    run_subprocess([
         '/usr/bin/gdal_rasterize', '-burn',
         str(reveg_lucode), '-l', KNOWN_REVEG_LAYER_NAME,
         reprojected_reveg_vector_path, result_path
-    ],
-        stdout=subprocess.DEVNULL)
+    ])
     return result_path
 
 
@@ -315,11 +331,10 @@ def reproject_geojson_to_epsg3107(workspace_dir_path, reveg_geojson):
         f.write(dumps(reveg_geojson))
     result_path = os.path.join(workspace_dir_path, reproj_reveg_filename)
     crs = get_crs_from_geojson(reveg_geojson)
-    subprocess.check_call([
+    run_subprocess([
         '/usr/bin/ogr2ogr', '-s_srs', crs, '-t_srs', 'EPSG:3107', '-f',
         'GeoJSON', result_path, reveg_vector_path
-    ],
-        stdout=subprocess.DEVNULL)
+    ])
     return result_path
 
 
@@ -330,28 +345,28 @@ def generate_images(workspace_dir, landcover_raster_path, farm_vector_path):
                                        'landcover_and_farm.png')
     burn_vector_script_path = os.path.join(app_docker_dir_path,
                                            'burn-vector-to-raster-png.sh')
-    subprocess.check_call([
+    # TODO we're using the chomped farm raster here. Perhaps we should burn the
+    # reveg over the top, but colour it like the farm, which shows how we treat
+    # the "no reveg" runs.
+    run_subprocess([
         burn_vector_script_path, landcover_raster_path,
         farm_on_raster_path, farm_vector_path, farm_layer_and_file_name,
         str(farm_lucode)
-    ],
-        stdout=subprocess.DEVNULL)
+    ])
     with open(farm_on_raster_path, 'rb') as f1:
         result['base'] = base64.b64encode(f1.read()).decode('utf-8')
-    reveg_vector_path = os.path.join(workspace_dir, 'year1',
-                                     reproj_reveg_filename)
+    reveg_vector_path = os.path.join(workspace_dir, reproj_reveg_filename)
     is_only_year0_run = not os.path.isfile(reveg_vector_path)
     if is_only_year0_run:
         return result
     reveg_and_farm_on_raster_path = os.path.join(
         workspace_dir, 'landcover_and_farm_and_reveg.png')
-    subprocess.check_call([
+    run_subprocess([
         burn_vector_script_path,
         farm_on_raster_path.replace('.png', '.tif'),
         reveg_and_farm_on_raster_path, reveg_vector_path,
         KNOWN_REVEG_LAYER_NAME, str(reveg_lucode)
-    ],
-        stdout=subprocess.DEVNULL)
+    ])
     with open(reveg_and_farm_on_raster_path, 'rb') as f2:
         result['reveg'] = base64.b64encode(f2.read()).decode('utf-8')
     return result
@@ -362,7 +377,7 @@ def create_cropped_raster(farm_vector_path, workspace_dir):
     full_raster_path = os.path.join(data_dir_path,
                                     u'south_australia_landcover.tif.gz')
     cropped_raster_path = os.path.join(workspace_dir, 'landcover_cropped.tif')
-    subprocess.check_call(
+    run_subprocess(
         [
             '/usr/bin/gdal_translate',
             '-projwin',
@@ -376,8 +391,7 @@ def create_cropped_raster(farm_vector_path, workspace_dir):
             'GTiff',
             u'/vsigzip/' + full_raster_path,
             cropped_raster_path
-        ],
-        stdout=subprocess.DEVNULL)
+        ])
     return cropped_raster_path
 
 
@@ -406,7 +420,13 @@ def load_farm_attributes(crop_type):
         attribute table """
     with open(farm_attribute_table_path(crop_type), 'r') as f:
         reader = csv.DictReader(f)
-        return list(reader)
+        rows = list(reader)
+    row_count = len(rows)
+    if row_count != 1:
+        logger.warn('Data error: Incorrect number of farm attribute rows' +
+                    f'found={row_count} for crop {crop_type}. Must be ' +
+                    'exactly 1!')
+    return rows[0]
 
 
 def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
@@ -415,13 +435,7 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
         to a shapefile and returns the path to that shapefile """
     shapefile_path = os.path.join(workspace_dir, filename_fragment + u'.shp')
     geojson_path = os.path.join(workspace_dir, filename_fragment + u'.json')
-    attr_table_rows = load_farm_attributes(crop_type)
-    row_count = len(attr_table_rows)
-    if row_count != 1:
-        logger.warn('Data error: Incorrect number of farm attribute rows' +
-                    f'found={row_count} for crop {crop_type}. Must be ' +
-                    'exactly 1!')
-    row = attr_table_rows[0]
+    row = load_farm_attributes(crop_type)
     row['crop_type'] = crop_type
     baked_geojson_vector = deepcopy(geojson_vector_from_user)
     # We only support a single polygon from the user. To support multiple
@@ -431,11 +445,10 @@ def transform_geojson_to_shapefile(geojson_vector_from_user, filename_fragment,
     crs = get_crs_from_geojson(geojson_vector_from_user)
     with open(geojson_path, 'w') as f:
         f.write(dumps(baked_geojson_vector))
-    subprocess.check_call([
+    run_subprocess([
         '/usr/bin/ogr2ogr', '-s_srs', crs, '-t_srs', 'EPSG:3107', '-f',
         'ESRI Shapefile', shapefile_path, geojson_path
-    ],
-        stdout=subprocess.DEVNULL)
+    ])
     return shapefile_path
 
 
@@ -473,18 +486,12 @@ class NatcapModelRunner(object):
             farm_vector_minus_reveg_geojson,
             farm_layer_and_file_name, workspace_dir,
             crop_type)
-        # year 0 can use either farm vector, but future years *must* use the
-        # chomped vector.
-        if is_farm_vector_chomped_for_year0:
-            logger.debug('Year 0 using *chomped* farm vector')
-            farm_vector_path = farm_vector_minus_reveg_path
-        else:
-            logger.debug('Year 0 using original (non-chomped) farm vector')
-            farm_vector_path = transform_geojson_to_shapefile(
-                geojson_farm_vector, farm_layer_and_file_name, workspace_dir,
-                crop_type)
-        landcover_raster_path = landcover_raster_cropper_fn(
+        farm_vector_path = farm_vector_minus_reveg_path
+        cropped_landcover_raster_path = landcover_raster_cropper_fn(
             farm_vector_path, workspace_dir)
+        landcover_raster_path = burn_reveg_on_raster(
+            cropped_landcover_raster_path, geojson_reveg_vector,
+            workspace_dir)
 
         # we use a pool so we can limit the number of concurrent processes. If
         # we just create processes we would either need to manage what's
@@ -506,8 +513,8 @@ class NatcapModelRunner(object):
                 pool.apply_async(run_future_year,
                                  (farm_vector_minus_reveg_path,
                                      landcover_raster_path, workspace_dir,
-                                     curr_year, geojson_reveg_vector, output,
-                                     crop_type, varroa_mite_year)))
+                                     curr_year, output, crop_type,
+                                     varroa_mite_year)))
         records = []
         pool.close()
         # we don't pool.join(), instead we block on the results in the queue so
@@ -522,7 +529,7 @@ class NatcapModelRunner(object):
         records.sort(key=lambda x: x[year_key])
         result = {
             'images':
-            generate_images(workspace_dir, landcover_raster_path,
+            generate_images(workspace_dir, cropped_landcover_raster_path,
                             farm_vector_path),
             'records':
             records,
