@@ -475,7 +475,7 @@ class NatcapModelRunner(object):
 
     def _execute_model(self, landcover_raster_cropper_fn, geojson_farm_vector,
                        years_to_simulate, geojson_reveg_vector, crop_type,
-                       mark_year_as_done_fn, varroa_mite_year):
+                       mark_year_as_done_fn, sim_count_fn, varroa_mite_year):
         start_ms = now_in_ms()
         workspace_dir = workspace_path(generate_unique_token())
         logger.debug(f'using workspace dir "{workspace_dir}"')
@@ -515,6 +515,7 @@ class NatcapModelRunner(object):
                                      landcover_raster_path, workspace_dir,
                                      curr_year, output, crop_type,
                                      varroa_mite_year)))
+        sim_count_fn(len(processes) + 1)
         records = []
         pool.close()
         # we don't pool.join(), instead we block on the results in the queue so

@@ -290,17 +290,22 @@ class AppBuilder(object):
         except KeyError:
             socketio_sid = None
 
-        def mark_year_as_done():
+        def send_socket_msg(code, msg):
             if not socketio_sid:
                 return
-            self.socketio.emit(
-                'year-complete',
-                {'msg': 'completed another year in the simulation'},
-                room=socketio_sid)
+            self.socketio.emit(code, msg, room=socketio_sid)
             self.socketio.sleep(0)  # flush
+
+        def send_total_sim_count(count):
+            send_socket_msg('sim-count', {'count': count})
+
+        def mark_year_as_done():
+            send_socket_msg(
+                'year-complete',
+                {'msg': 'completed another year in the simulation'})
 
         result = runner_fn(geojson_farm_vector, years_to_simulate,
                            geojson_reveg_vector, crop_type, mark_year_as_done,
-                           varroa_mite_year)
+                           send_total_sim_count, varroa_mite_year)
 
         return jsonify(result)
