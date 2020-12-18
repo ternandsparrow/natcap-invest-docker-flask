@@ -1,4 +1,4 @@
 SPECIES,nesting_suitability_cavity_index,nesting_suitability_ground_index,foraging_activity_spring_index,alpha,relative_abundance
-Apis,1,0,1,1000,0.4
+Apis,0.63,0,0.63,1000,1
 Halictines,0,1,1,300,0.2
 Exoneura,1,0,1,200,0.1
