@@ -9,26 +9,49 @@ image. The landcover raster comes from
 Specifically we've focused on the pollination model at this stage, because
 that's what we need.
 
-Getting an idea of the performance and required resources is useful. We'll run
-the Docker container on my laptop with a 2nd gen Core i7, plenty of RAM and
-using a secondary SSD. We're using the out-of-the-box demo farm vector and the
-default farm padding of 3km which gives us a raster size of approximately 13x12
-km. We see the following figures:
+## What data do we feed into the model?
+The InVEST model lists its [data needs
+here](http://data.naturalcapitalproject.org/nightly-build/invest-users-guide/html/croppollination.html#data-needs).
+You can find the "landcover biophysical tables", "guild tables" and "farm
+attributes" that we feed into the model in the `docker/` directory of this
+repository. Each crop type that we support has its own tables. The user is asked
+to supply *only* the vector for their farm. The attributes for the farm are
+taken from CSVs files on the server, we don't get those values from the user.
 
-years simulated | run times for 3 runs (seconds) | disk used
---- | --- | ---
-1 | 2.5-2.6 | 125MB
-3 | 3.5-3.6 | 249MB
-10 | 7.4-8.0 | 683MB
-30 | 20.2-20.7 | 1.9GB
+Modelling the introduction of varroa mite is achieved by using separate "guild
+tables" that adjust the `nesting_suitability_` and `foraging_activity_` values
+for the Apis genus.  We found that this was the best way to model a reduction in
+Apis. Adjusting the `relative_abundance` value seemed to have the opposite of
+the desired effect; rather than reducing Apis abundance, it seemed to increase
+the other guilds.
 
-All years are run in parallel with one process per year so the CPUs are
-completely used once the number of years equals the number of cores (8 on my
-machine). Even though the NatCap model writes a lot of intermediate `tif` files
-as part of the processing, a faster disk (like ramdisk) doesn't improve
-performance because we're CPU-bound. Also note that all the files produced from
-InVEST are removed after a run, however you *need* the disk space available to
-perform the run.
+## Performance
+
+Getting an idea of the performance and required resources is useful. Run time
+and disk space usage is primarily affected by the size of the farm vector.
+Larger farms mean larger rasters and these take longer to process. The number of
+years makes less difference because we only run for a subset of years so more
+years doesn't mean more simulations.
+
+Running on a 4th gen 3.6ghz Intel Core i7, with 1.5km farm padding, we see the
+following kinds of numbers:
+
+years simulated | farm size (ha) | run times for 3 runs (seconds) | disk used (MB)
+--- | --- | --- | ---
+3 | 50 | 3 | 24
+3 | 5040 | 5 | 98
+15 | 50 | 4 | 44
+15 | 5040 | 7 | 182
+25 | 50 | 4 | 48
+25 | 5040 | 7 | 196
+
+All simulations are run in parallel with one process per year so the CPUs are
+completely used once the number of simulations equals the number of cores . As
+we only run for a subset of all years, the number of simulations is usually 7-9.
+Even though the NatCap model writes a lot of intermediate `tif` files as part of
+the processing, a faster disk (like ramdisk) doesn't improve performance because
+we're CPU-bound. Also note that all the files produced from InVEST are removed
+after a run, however you *need* the disk space available to perform the run.
 
 ## Version numbers
 We tag the Git and DockerHub repos with a version scheme: `{our version}_{InVEST
