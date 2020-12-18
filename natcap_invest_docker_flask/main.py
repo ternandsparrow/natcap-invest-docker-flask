@@ -11,7 +11,8 @@ socketio_secret = os.getenv('SOCKETIO_SECRET', default='secret!')
 app_builder = AppBuilder(natcap_wrapper.NatcapModelRunner())
 app = app_builder.build()
 app.config['SECRET_KEY'] = socketio_secret
-socketio = SocketIO(app)
+cors_origin = os.getenv('CORS_ORIGIN', default='*')
+socketio = SocketIO(app, cors_allowed_origins=cors_origin)
 app_builder.set_socketio(socketio)
 
 is_debug = True
