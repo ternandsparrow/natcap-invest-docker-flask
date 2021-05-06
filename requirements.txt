@@ -1,6 +1,6 @@
 Flask-Cors==3.0.7
 Flask-Inputs==0.3.0
-Flask-SocketIO==4.0.0
+Flask-SocketIO==4.3.2
 Flask==1.0.2
 Shapely==1.7.1
 eventlet==0.25.0
